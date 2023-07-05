@@ -9,9 +9,9 @@ typedef struct user_data{
 	int s_len;
 }ud_t;	
 
-typedef struct bpf_info{
+struct bpf_info{
 	int count;
-}bpf_info_t;
+};
 
 
 #endif //__SC_H__
