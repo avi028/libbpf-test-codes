@@ -17,27 +17,27 @@
 static volatile bool exiting = false;
 
 
-void lps(int * pt , int n, char * p){
+// void lps(int * pt , int n, char * p){
     
-    int l=0,i=1;
-    pt[l]=0;
-    while(i<n){
-        if(p[i]==p[l]){
-            pt[i]=l+1;
-            l+=1;
-            i+=1;
-        }
-        else{
-            if(l!=0){
-                l=pt[l-1];              
-            }
-            else{
-                pt[i]=0;
-                i+=1;
-            }
-        }
-    }
-}
+//     int l=0,i=1;
+//     pt[l]=0;
+//     while(i<n){
+//         if(p[i]==p[l]){
+//             pt[i]=l+1;
+//             l+=1;
+//             i+=1;
+//         }
+//         else{
+//             if(l!=0){
+//                 l=pt[l-1];              
+//             }
+//             else{
+//                 pt[i]=0;
+//                 i+=1;
+//             }
+//         }
+//     }
+// }
 
 
 static void sig_handler(int sig)
@@ -54,9 +54,14 @@ static int handle_evt(void *ctx, void *data, size_t sz)
     return 0;
 }
 
+
+// ifindex 1 -> loopback
+// ifindex 2 -> ethernet
+// ifindex 3 -> wifi
+
 int main(int argc, char **argv)
 {
-    DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 3, .attach_point = BPF_TC_EGRESS);
+    DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 1, .attach_point = BPF_TC_EGRESS);
     DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts, .handle = 1, .priority = 1);
 
     signal(SIGINT, sig_handler);
