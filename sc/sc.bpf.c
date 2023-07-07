@@ -27,8 +27,8 @@
 
 
 // user defined #def
-#define debug 0
-#define MIN_HTTP_HEADER 5
+#define debug 1
+#define MIN_HTTP_HEADER 50
 #define PORT_LIST_SIZE 10
 #define NOT_HTTP 0
 #define HTTP_RESPONSE 1
@@ -94,29 +94,42 @@ struct tcphdr * is_tcp(struct iphdr * ip_hdr  ,  void * data_end){
     return tcp_hdr;
 }
 
+
 struct p_data{
-    char data[4];
+    char load[MIN_HTTP_HEADER];
 };
 
-int is_http(void * data , void * data_end ,int payload_offset){
+struct response_data{
+    char http[8];
+    char b1;
+    char status_code[3];
+    char b2;
+};
+
+
+int is_http(struct __sk_buff *skb,int payload_offset,int total_pkt_len){
 
     struct p_data * payload = NULL;
+    struct response_data * rd = NULL;
 
-    if(!data || !data_end)
+    if(!skb)
         return 0;
+
+    void *data_end = (void*)(__u64)skb->data_end;
+    void *data = (void *)(__u64)skb->data;
 
     if(((void *)data + payload_offset + sizeof(*payload)) > data_end)
         return -1;
 
     payload = (struct p_data * )((void *)data + payload_offset);
+    
+    if(payload->load[0]=='H' && payload->load[1]=='T' && payload->load[2]=='T' && payload->load[3]=='P')
+        return HTTP_RESPONSE;
 
-    if(payload->data[0]=='H' && payload->data[1]=='T' && payload->data[2]=='T' && payload->data[3]=='P')
-         return HTTP_RESPONSE;
+    if(payload->load[0]=='G' && payload->load[1]=='E' && payload->load[2]=='T')
+        return GET_REQUEST;        
 
-    if(payload->data[0]=='G' && payload->data[1]=='E' && payload->data[2]=='T')        
-        return GET_REQUEST;
-
-    if(payload->data[0]=='P' && payload->data[1]=='O' && payload->data[2]=='S' && payload->data[3]=='T')        
+    if(payload->load[0]=='P' && payload->load[1]=='O' && payload->load[2]=='S' && payload->load[3]=='T')        
         return POST_REQUEST;
 
     return -2;
@@ -138,6 +151,9 @@ int is_port(struct tcphdr * tcp_hdr, int * alw_prt_list ){
 }
 
 
+struct char1{
+    char c[1];
+};
 
 // Driver Code
 SEC("classifier")
@@ -193,7 +209,7 @@ int handle_egress(struct __sk_buff *skb)
     data = (void*)(__u64)skb->data;
     data_end = (void*)(__u64)skb->data_end;
 
-    int http_flag = is_http(data,data_end,payload_offset);
+    int http_flag = is_http(skb,payload_offset, total_pkt_len);
 
     if(http_flag <= 0 ){
         if(debug) bpf_printk("HIT HTTP FILTER : %d",http_flag);        
@@ -205,6 +221,18 @@ int handle_egress(struct __sk_buff *skb)
         bpf_printk("GOT HTTP RESPONSE AT PORT\t%d",dest_port);        
     else if(http_flag == GET_REQUEST)        
         bpf_printk("SENT GET REQUEST FROM PORT\t%d",src_port);                
+    
+
+     /*For byte wise comparison*/
+
+    // struct char1 * c_ptr = NULL;    
+    // for(int j=0,i=payload_offset; i<skb->len && j<MIN_HTTP_HEADER;i++,j++){
+
+    //     if(((void*)data + i + sizeof(*c_ptr)) < data_end ){
+    //         c_ptr = (struct char1 *) ((void*)data + i);
+    //         bpf_printk("%s\n",c_ptr->c);
+    //     }
+    // }
 
 ERROR:
 
