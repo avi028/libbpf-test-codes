@@ -94,23 +94,13 @@ struct tcphdr * is_tcp(struct iphdr * ip_hdr  ,  void * data_end){
     return tcp_hdr;
 }
 
-
 struct p_data{
     char load[MIN_HTTP_HEADER];
 };
 
-struct response_data{
-    char http[8];
-    char b1;
-    char status_code[3];
-    char b2;
-};
-
-
 int is_http(struct __sk_buff *skb,int payload_offset,int total_pkt_len){
 
     struct p_data * payload = NULL;
-    struct response_data * rd = NULL;
 
     if(!skb)
         return 0;
@@ -155,6 +145,29 @@ struct char1{
     char c[1];
 };
 
+struct http_response{
+    char http[8];
+    char b1;
+    char scode[3];
+    char b2;
+};
+
+struct get_request{
+    char req[3];
+    char b1;
+    char uri[16];
+    char b2;
+    char http[8];
+};
+
+struct put_request {
+    char req[4];
+    char b1;
+    char uri[16];
+    char b2;
+    char http[8];
+};
+
 // Driver Code
 SEC("classifier")
 
@@ -183,7 +196,7 @@ int handle_egress(struct __sk_buff *skb)
         goto EXIT;
     }
     int ip_hdr_len = (ip->ihl<<2);
-    int total_pkt_len = ip->tot_len;
+    __u16 total_pkt_len = ntohs(ip->tot_len);
 
     //if IS TCP
 
@@ -199,14 +212,18 @@ int handle_egress(struct __sk_buff *skb)
 
     // if port is in alw_prt_list
 
-    if(( eth_hdr_len+ ip_hdr_len + tcp_hdr_len + MIN_HTTP_HEADER) > total_pkt_len )
+    if(( eth_hdr_len+ ip_hdr_len + tcp_hdr_len + MIN_HTTP_HEADER) > total_pkt_len ){
+        if(debug) bpf_printk("HIT HTTP LENGTH FILTER");        
         goto EXIT;
+    }
     
     int payload_offset = eth_hdr_len+ ip_hdr_len + tcp_hdr_len;
     
+    // bpf_printk("struct Len : %d\t Tot len : %d",payload_offset,total_pkt_len);
+
     bpf_skb_pull_data(skb,payload_offset+MIN_HTTP_HEADER);
     
-    data = (void*)(__u64)skb->data;
+    data = (void*)(__u64)skb->data; 
     data_end = (void*)(__u64)skb->data_end;
 
     int http_flag = is_http(skb,payload_offset, total_pkt_len);
@@ -217,11 +234,51 @@ int handle_egress(struct __sk_buff *skb)
     }
 
     // if is HTTP Request/Response
-    if(http_flag==HTTP_RESPONSE)
-        bpf_printk("GOT HTTP RESPONSE AT PORT\t%d",dest_port);        
-    else if(http_flag == GET_REQUEST)        
-        bpf_printk("SENT GET REQUEST FROM PORT\t%d",src_port);                
+
+    if(http_flag==HTTP_RESPONSE){
     
+        // http response code read with constant size
+        if(debug) bpf_printk("GOT HTTP RESPONSE AT PORT\t%d",dest_port);        
+    
+        struct http_response * hr = NULL;
+
+        if(((void *) data + payload_offset + sizeof(*hr)) > data_end)
+            goto EXIT;
+
+        hr = (struct http_response *) ((void *)data + payload_offset);
+
+        for(int i=0;i<sizeof(hr->scode);i++)
+            bpf_printk("Http : %d",(hr->scode[i]-48));    
+    }
+    else if(http_flag == GET_REQUEST){        
+
+        // get request uri of constant size read at constant time
+        if(debug) bpf_printk("SENT GET REQUEST FROM PORT\t%d",src_port);                
+
+        struct get_request * gr = NULL;
+
+        if(((void *) data + payload_offset + sizeof(*gr)) > data_end)
+            goto EXIT;
+
+        gr = (struct get_request *) ((void*)data + payload_offset);
+        for(int i=0;i<sizeof(gr->uri);i++)
+            bpf_printk("uri[%d] : %d",i,(gr->uri[i]));    
+
+    }
+    else if(http_flag == POST_REQUEST){
+
+        // get request uri of constant size read at constant time
+        if(debug) bpf_printk("SENT POST REQUEST FROM PORT\t%d",src_port);
+
+        struct post_request * gr = NULL;
+
+        if(((void *) data + payload_offset + sizeof(*gr)) > data_end)
+            goto EXIT;
+
+        gr = (struct get_request *) ((void*)data + payload_offset);
+        for(int i=0;i<sizeof(gr->uri);i++)
+            bpf_printk("uri[%d] : %d",i,(gr->uri[i]));
+    }
 
      /*For byte wise comparison*/
 
@@ -230,19 +287,20 @@ int handle_egress(struct __sk_buff *skb)
 
     //     if(((void*)data + i + sizeof(*c_ptr)) < data_end ){
     //         c_ptr = (struct char1 *) ((void*)data + i);
-    //         bpf_printk("%s\n",c_ptr->c);
+    //         if(debug) bpf_printk("%s\n",c_ptr->c);
     //     }
     // }
 
 ERROR:
 
 EXIT:
+    bpf_printk("-------------  Code Over  ---------------\n");
 	return rc;
 }
 
 
-    // char fmt [] = "count : %d\n";
-    // int fmt_size = sizeof(fmt);
+// char fmt [] = "count : %d\n";
+// int fmt_size = sizeof(fmt);
 
 
 /*
