@@ -27,7 +27,8 @@
 
 
 // user defined #def
-#define debug 1
+#define DEBUG_LEVEL_2 0
+#define DEBUG_LEVEL_1 1
 #define MIN_HTTP_HEADER 50
 #define PORT_LIST_SIZE 10
 #define NOT_HTTP 0
@@ -35,10 +36,10 @@
 #define GET_REQUEST 2
 #define POST_REQUEST 3
 
-// Globals
+/*## Globals ##*/
 pid_t my_pid = 0;
 
-// MAPS
+/*## MAPS ##*/
 
 // struct {
 //     __uint(type, BPF_MAP_TYPE_HASH);
@@ -53,8 +54,63 @@ pid_t my_pid = 0;
 // } rb SEC(".maps");
 
 
+/*## STRUCTS ##*/
 
-// FUNCTIONS
+struct p_data{
+    char load[MIN_HTTP_HEADER];
+};
+
+struct char1{
+    char c[1];
+};
+
+struct http_response{
+    char http[8];
+    char b1;
+    char scode[3];
+    char b2;
+};
+
+struct uri_s{
+    char p1[3];
+    char b1;
+    char p2[3];
+};
+
+// Never count the extra spaces -- 
+struct uri_l{
+    char p1[3];
+    char b1;
+    char p2[8];
+};
+
+struct get_request_s{
+    char req[3];
+    char b1[2];
+    struct uri_s uri;
+    char b2;
+    char http[8];
+    char end;
+};
+
+struct get_request_l{
+    char req[3];
+    char b1[2];
+    struct uri_l uri;
+    char b2;
+    char http[8];
+    char end;
+};
+
+struct post_request {
+    char req[4];
+    char b1;
+    char uri[16];
+    char b2;
+    char http[8];
+};
+
+/*## FUNCTIONS ##*/
 
 struct iphdr * is_ip(struct ethhdr *eth_hdr,void * data_end){
     struct iphdr *ip_hdr = NULL;
@@ -72,7 +128,6 @@ struct iphdr * is_ip(struct ethhdr *eth_hdr,void * data_end){
 
     return ip_hdr;
 }
-
 
 struct tcphdr * is_tcp(struct iphdr * ip_hdr  ,  void * data_end){
     struct tcphdr * tcp_hdr = NULL;
@@ -93,10 +148,6 @@ struct tcphdr * is_tcp(struct iphdr * ip_hdr  ,  void * data_end){
 
     return tcp_hdr;
 }
-
-struct p_data{
-    char load[MIN_HTTP_HEADER];
-};
 
 int is_http(struct __sk_buff *skb,int payload_offset,int total_pkt_len){
 
@@ -141,36 +192,9 @@ int is_port(struct tcphdr * tcp_hdr, int * alw_prt_list ){
 }
 
 
-struct char1{
-    char c[1];
-};
+/*## Driver Code ##*/
 
-struct http_response{
-    char http[8];
-    char b1;
-    char scode[3];
-    char b2;
-};
-
-struct get_request{
-    char req[3];
-    char b1;
-    char uri[16];
-    char b2;
-    char http[8];
-};
-
-struct put_request {
-    char req[4];
-    char b1;
-    char uri[16];
-    char b2;
-    char http[8];
-};
-
-// Driver Code
 SEC("classifier")
-
 int handle_egress(struct __sk_buff *skb)
 {
     int rc = TC_ACT_OK;
@@ -184,7 +208,7 @@ int handle_egress(struct __sk_buff *skb)
 
     struct iphdr * ip = is_ip(eth,data_end);
     if(!ip){
-        if(debug) bpf_printk("HIT IP FILTER");
+        if(DEBUG_LEVEL_2) bpf_printk("HIT IP FILTER");
         goto EXIT;
     }
     int eth_hdr_len = sizeof(struct ethhdr);
@@ -192,7 +216,7 @@ int handle_egress(struct __sk_buff *skb)
     //if IS IP    
     struct tcphdr * tcp = is_tcp(ip,data_end);
     if(!tcp){
-        if(debug) bpf_printk("HIT TCP FILTER");        
+        if(DEBUG_LEVEL_2) bpf_printk("HIT TCP FILTER");        
         goto EXIT;
     }
     int ip_hdr_len = (ip->ihl<<2);
@@ -202,7 +226,7 @@ int handle_egress(struct __sk_buff *skb)
 
     int port_flag = is_port(tcp,alw_prt_list);
     if(!port_flag){
-        if(debug) bpf_printk("HIT PORT FILTER");        
+        if(DEBUG_LEVEL_2) bpf_printk("HIT PORT FILTER");        
         goto EXIT;
     }
     int src_port = ntohs(tcp->source);
@@ -213,7 +237,7 @@ int handle_egress(struct __sk_buff *skb)
     // if port is in alw_prt_list
 
     if(( eth_hdr_len+ ip_hdr_len + tcp_hdr_len + MIN_HTTP_HEADER) > total_pkt_len ){
-        if(debug) bpf_printk("HIT HTTP LENGTH FILTER");        
+        if(DEBUG_LEVEL_1) bpf_printk("HIT HTTP LENGTH FILTER");        
         goto EXIT;
     }
     
@@ -229,7 +253,7 @@ int handle_egress(struct __sk_buff *skb)
     int http_flag = is_http(skb,payload_offset, total_pkt_len);
 
     if(http_flag <= 0 ){
-        if(debug) bpf_printk("HIT HTTP FILTER : %d",http_flag);        
+        if(DEBUG_LEVEL_1) bpf_printk("HIT HTTP FILTER : %d",http_flag);        
         goto EXIT;
     }
 
@@ -238,7 +262,7 @@ int handle_egress(struct __sk_buff *skb)
     if(http_flag==HTTP_RESPONSE){
     
         // http response code read with constant size
-        if(debug) bpf_printk("GOT HTTP RESPONSE AT PORT\t%d",dest_port);        
+        if(DEBUG_LEVEL_1) bpf_printk("GOT HTTP RESPONSE AT PORT\t%d",dest_port);        
     
         struct http_response * hr = NULL;
 
@@ -252,100 +276,63 @@ int handle_egress(struct __sk_buff *skb)
     }
     else if(http_flag == GET_REQUEST){        
 
-        // get request uri of constant size read at constant time
-        if(debug) bpf_printk("SENT GET REQUEST FROM PORT\t%d",src_port);                
+        // get request uri sub parts of size-range read at constant time
+        if(DEBUG_LEVEL_1) bpf_printk("SENT GET REQUEST FROM PORT\t%d",src_port);                
 
-        struct get_request * gr = NULL;
-
-        if(((void *) data + payload_offset + sizeof(*gr)) > data_end)
+        struct get_request_s * grs = NULL;
+        struct get_request_l * grl = NULL;
+        
+        // set the smallest uri-length test first
+        if(((void *) data + payload_offset + sizeof(*grs)) > data_end)
             goto EXIT;
 
-        gr = (struct get_request *) ((void*)data + payload_offset);
-        for(int i=0;i<sizeof(gr->uri);i++)
-            bpf_printk("uri[%d] : %d",i,(gr->uri[i]));    
+        grs = (struct get_request_s *) ((void*)data + payload_offset);
+        if(grs->end == '\r'){
+            for(int i=0;i<sizeof(grs->uri.p2);i++)
+                bpf_printk("uri[%d] : %d",i,(grs->uri.p2[i]));    
+            goto EXIT;
+        }
+    
+        // set the second smallest uri-length test
+        if(((void *) data + payload_offset + sizeof(*grl)) > data_end)
+            goto EXIT;
+
+        grl = (struct get_request_l *) ((void*)data + payload_offset);
+        if(grl->end == '\r'){
+            for(int i=0;i<sizeof(grl->uri.p2);i++)
+                bpf_printk("uri[%d] : %d",i,(grl->uri.p2[i]));    
+            goto EXIT;
+        }
+
+        // set the third smallest uri-length test 
+
+        // code ....
 
     }
     else if(http_flag == POST_REQUEST){
 
         // get request uri of constant size read at constant time
-        if(debug) bpf_printk("SENT POST REQUEST FROM PORT\t%d",src_port);
+        if(DEBUG_LEVEL_1) bpf_printk("SENT POST REQUEST FROM PORT\t%d",src_port);
 
         struct post_request * gr = NULL;
 
         if(((void *) data + payload_offset + sizeof(*gr)) > data_end)
             goto EXIT;
 
-        gr = (struct get_request *) ((void*)data + payload_offset);
+        gr = (struct post_request *) ((void*)data + payload_offset);
         for(int i=0;i<sizeof(gr->uri);i++)
             bpf_printk("uri[%d] : %d",i,(gr->uri[i]));
     }
 
-     /*For byte wise comparison*/
-
-    // struct char1 * c_ptr = NULL;    
-    // for(int j=0,i=payload_offset; i<skb->len && j<MIN_HTTP_HEADER;i++,j++){
-
-    //     if(((void*)data + i + sizeof(*c_ptr)) < data_end ){
-    //         c_ptr = (struct char1 *) ((void*)data + i);
-    //         if(debug) bpf_printk("%s\n",c_ptr->c);
-    //     }
-    // }
-
 ERROR:
 
 EXIT:
-    bpf_printk("-------------  Code Over  ---------------\n");
+    if(DEBUG_LEVEL_1)bpf_printk("-------------  Code Over  ---------------\n");
 	return rc;
 }
 
+char LICENSE[] SEC("license") = "GPL";
 
+/*-------------------------------------------*/
 // char fmt [] = "count : %d\n";
 // int fmt_size = sizeof(fmt);
-
-
-/*
-    char s,p;
-    int flag=0;
-    u32 key = 1;
-    ud_t * ud = bpf_map_lookup_elem(&data,&key);
-
-    if(!ud){
-        goto ERROR;
-    }
-*/
-
-
-    // bpf_printk("SRC IP:\t%d\n", ntohs(ip->saddr));
-    // bpf_printk("SRC PORT:\t%d\n", ntohs(tcp->source));
-    // bpf_printk("DEST IP:\t%d\n", ntohs(ip->daddr));
-    // bpf_printk("DEST PORT:\t%d\n", ntohs(tcp->dest));    
-
-
-/*Ring Buffer Handling 
-    struct bpf_info * bi = bpf_ringbuf_reserve(&rb, sizeof(*bi), 0);
-
-    if(!bi){
-        goto ERROR;
-    }    
-
-    
-    bi->count=flag;
-    bpf_ringbuf_submit(bi, 0);
-*/
-
-/* KMP Algorithm : 
-    for(int j=0,i=0,total = 0; total < 1000 && j<ud->p_len && i<ud->s_len; total ++){
-        if(i<11 && ud->s && j<4 && ud->p && ud->p[j]==ud->s[i]){
-            i++;
-            j++;
-        }
-        else{
-            if(j>0 && ud->pt && j<4)
-                j=ud->pt[j-1];
-            else
-                i++;
-        }       
-        flag=j;
-    }
-*/
-char LICENSE[] SEC("license") = "GPL";
