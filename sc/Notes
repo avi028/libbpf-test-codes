@@ -11,19 +11,24 @@
 */
 
 /* Map Lookup & Update
- 
-    bpf_map_lookup_elem(&<map attr struct name> ,
-                        &<key> , 
-                        )
+    
+    BPF SIDE : 
+        bpf_map_lookup_elem(&<map attr struct name> ,
+                            &<key> , 
+                            )
 
-    bpf_map_update_elem(&<map attr struct name> ,
-                        &<key> , 
-                        &<value> , 
-                        <type of update 1. BPF_ANY (either create new or update) 
-                                        2. BPF_NOEXIST create new only if not exist 
-                                        3. BPF_EXIST update only if exists 
-                        >
-                        )
+        bpf_map_update_elem(&<map attr struct name> ,
+                            &<key> , 
+                            &<value> , 
+                            <type of update 1. BPF_ANY (either create new or update) 
+                                            2. BPF_NOEXIST create new only if not exist 
+                                            3. BPF_EXIST update only if exists 
+                            >
+                            )
+
+    USER SIDE : 
+        
+
 */
 
 /*Ring Buffer Handling 
