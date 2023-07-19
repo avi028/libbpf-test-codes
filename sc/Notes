@@ -10,15 +10,20 @@
     }
 */
 
-/* Map Lookup
-    char s,p;
-    int flag=0;
-    u32 key = 1;
-    ud_t * ud = bpf_map_lookup_elem(&data,&key);
+/* Map Lookup & Update
+ 
+    bpf_map_lookup_elem(&<map attr struct name> ,
+                        &<key> , 
+                        )
 
-    if(!ud){
-        goto ERROR;
-    }
+    bpf_map_update_elem(&<map attr struct name> ,
+                        &<key> , 
+                        &<value> , 
+                        <type of update 1. BPF_ANY (either create new or update) 
+                                        2. BPF_NOEXIST create new only if not exist 
+                                        3. BPF_EXIST update only if exists 
+                        >
+                        )
 */
 
 /*Ring Buffer Handling 

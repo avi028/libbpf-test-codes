@@ -25,10 +25,9 @@
 #define ntohl bpf_ntohl
 #define ntohs bpf_ntohs
 
-
 // user defined #def
 #define DEBUG_LEVEL_2 0
-#define DEBUG_LEVEL_1 1
+#define DEBUG_LEVEL_1 0
 #define MIN_HTTP_HEADER 50
 #define PORT_LIST_SIZE 10
 #define NOT_HTTP 0
@@ -41,18 +40,17 @@ pid_t my_pid = 0;
 
 /*## MAPS ##*/
 
-// struct {
-//     __uint(type, BPF_MAP_TYPE_HASH);
-//     __uint(max_entries, 10);
-//     __type(value, ud_t);
-//     __type(key, u32);
-// } data SEC(".maps");
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(max_entries, 10);
+    __type(value, ud_t);
+    __type(key, u32);
+} user_map SEC(".maps");
 
 // struct {
 //     __uint(type, BPF_MAP_TYPE_RINGBUF);
 //     __uint(max_entries, 16*1024);
 // } rb SEC(".maps");
-
 
 /*## STRUCTS ##*/
 
@@ -63,6 +61,11 @@ struct p_data{
 struct char1{
     char c[1];
 };
+
+struct char2{
+    char c[2];
+};
+
 
 struct http_response{
     char http[8];
@@ -195,6 +198,7 @@ int is_port(struct tcphdr * tcp_hdr, int * alw_prt_list ){
 /*## Driver Code ##*/
 
 SEC("classifier")
+
 int handle_egress(struct __sk_buff *skb)
 {
     int rc = TC_ACT_OK;
@@ -259,6 +263,10 @@ int handle_egress(struct __sk_buff *skb)
 
     // if is HTTP Request/Response
 
+
+    ud_t * ud = NULL;
+    u32 key = COUNTER_KEY;
+
     if(http_flag==HTTP_RESPONSE){
     
         // http response code read with constant size
@@ -272,7 +280,16 @@ int handle_egress(struct __sk_buff *skb)
         hr = (struct http_response *) ((void *)data + payload_offset);
 
         for(int i=0;i<sizeof(hr->scode);i++)
-            bpf_printk("Http : %d",(hr->scode[i]-48));    
+            if(DEBUG_LEVEL_1) bpf_printk("Http : %d",(hr->scode[i]-48));    
+
+        ud = (ud_t *)bpf_map_lookup_elem(&user_map,&key);
+
+        if(hr->scode[0]=='2' && hr->scode[1]=='0' && hr->scode[2]=='0'){
+            if(ud){        
+                ud->counter+=1;
+                bpf_map_update_elem(&user_map,&key,ud,BPF_ANY);
+            }
+        }
     }
     else if(http_flag == GET_REQUEST){        
 
@@ -289,7 +306,7 @@ int handle_egress(struct __sk_buff *skb)
         grs = (struct get_request_s *) ((void*)data + payload_offset);
         if(grs->end == '\r'){
             for(int i=0;i<sizeof(grs->uri.p2);i++)
-                bpf_printk("uri[%d] : %d",i,(grs->uri.p2[i]));    
+                if(DEBUG_LEVEL_1)  bpf_printk("uri[%d] : %d",i,(grs->uri.p2[i]));    
             goto EXIT;
         }
     
@@ -300,7 +317,7 @@ int handle_egress(struct __sk_buff *skb)
         grl = (struct get_request_l *) ((void*)data + payload_offset);
         if(grl->end == '\r'){
             for(int i=0;i<sizeof(grl->uri.p2);i++)
-                bpf_printk("uri[%d] : %d",i,(grl->uri.p2[i]));    
+                if(DEBUG_LEVEL_1) bpf_printk("uri[%d] : %d",i,(grl->uri.p2[i]));    
             goto EXIT;
         }
 
@@ -309,6 +326,7 @@ int handle_egress(struct __sk_buff *skb)
         // code ....
 
     }
+
     else if(http_flag == POST_REQUEST){
 
         // get request uri of constant size read at constant time
@@ -321,13 +339,13 @@ int handle_egress(struct __sk_buff *skb)
 
         gr = (struct post_request *) ((void*)data + payload_offset);
         for(int i=0;i<sizeof(gr->uri);i++)
-            bpf_printk("uri[%d] : %d",i,(gr->uri[i]));
+            if(DEBUG_LEVEL_1)  bpf_printk("uri[%d] : %d",i,(gr->uri[i]));
     }
 
 ERROR:
 
 EXIT:
-    if(DEBUG_LEVEL_1)bpf_printk("-------------  Code Over  ---------------\n");
+    if(DEBUG_LEVEL_1) bpf_printk("-------------  Code Over  ---------------\n");
 	return rc;
 }
 

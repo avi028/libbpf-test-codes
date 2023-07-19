@@ -60,7 +60,7 @@ static int handle_evt(void *ctx, void *data, size_t sz)
 // ifindex 3 -> wifi
 
 int main(int argc, char **argv)
-{
+    {
     DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 1, .attach_point = BPF_TC_EGRESS);
     DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts, .handle = 1, .priority = 1);
 
@@ -75,7 +75,11 @@ int main(int argc, char **argv)
     }
     printf("Program Loaded\n");
 
-    skel->bss->my_pid = getpid();
+    if(skel->bss == NULL){
+        printf("No Global Var Support\n");
+    }    
+    else
+        skel->bss->my_pid = getpid();
 
     bpf_tc_hook_create(&hook);
     hook.attach_point = BPF_TC_CUSTOM;
@@ -86,29 +90,28 @@ int main(int argc, char **argv)
     opts.prog_id = 0; 
     opts.flags = BPF_TC_F_REPLACE;
 
+    
     bpf_tc_attach(&hook, &opts);
     printf("Program Attached\n");
     
-    // int map_fd = bpf_map__fd(skel->maps.data);
+    int map_fd = bpf_map__fd(skel->maps.user_map);
+    ud_t  ud;
+    ud.counter = 0;
+    unsigned int  key  = COUNTER_KEY;
 
-    // int key=1;
-    // ud_t ud ;
-    // strcpy(ud.s,"aabcaaabcbc");
-    // strcpy(ud.p,"aabc");
-    // ud.s_len = 11;
-    // ud.p_len = 4;
+    bpf_map_update_elem(map_fd,&key,&ud,BPF_ANY);
 
-    // lps(ud.pt , ud.p_len , ud.p);
-
-    // // for(int i=0;i<ud.p_len;i++)
-    // //     printf("%d ",ud.pt[i]);
-
-    // bpf_map_update_elem(map_fd, &key, &ud, 0);
-    
-    // struct ring_buffer *rb = ring_buffer__new(bpf_map__fd(skel->maps.rb), handle_evt, NULL, NULL);
     while(exiting!=true){
-        // ring_buffer__poll(rb, 1000);
+        int status = bpf_map_lookup_elem(map_fd,&key,&ud);
+        // printf("map status %d", status);
+        if(status!=-1){
+            printf("200 Status Count: %d\r",ud.counter);
+            fflush(stdout);
+        }
+        sleep(1);
     }
+    printf("\n");
+    close(map_fd);
 
     opts.flags = opts.prog_id = opts.prog_fd = 0;
     int dtch = bpf_tc_detach(&hook, &opts);

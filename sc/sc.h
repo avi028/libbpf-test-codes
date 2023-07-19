@@ -1,12 +1,10 @@
 #ifndef __SC_H__
 #define __SC_H__
 
+#define COUNTER_KEY 1234
+
 typedef struct user_data{
-	char s[100];
-	char p[10];
-	int pt[10];
-	int p_len;
-	int s_len;
+	int counter;
 }ud_t;	
 
 struct bpf_info{
