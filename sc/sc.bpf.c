@@ -26,8 +26,8 @@
 #define ntohs bpf_ntohs
 
 // user defined #def
-#define DEBUG_LEVEL_2 0
-#define DEBUG_LEVEL_1 0
+#define DEBUG_LEVEL_2 1
+#define DEBUG_LEVEL_1 1
 #define MIN_HTTP_HEADER 50
 #define PORT_LIST_SIZE 10
 #define NOT_HTTP 0
@@ -66,6 +66,17 @@ struct char2{
     char c[2];
 };
 
+struct char4{
+    char c[4];
+};
+
+struct char100{
+    char c[100];
+};
+
+struct char500{
+    char c[500];
+};
 
 struct http_response{
     char http[8];
@@ -152,7 +163,28 @@ struct tcphdr * is_tcp(struct iphdr * ip_hdr  ,  void * data_end){
     return tcp_hdr;
 }
 
-int is_http(struct __sk_buff *skb,int payload_offset,int total_pkt_len){
+struct  udphdr * is_udp(struct iphdr * ip_hdr  ,  void * data_end){
+    struct udphdr * udp_hdr = NULL;
+
+    if(!ip_hdr || !data_end)
+        return NULL;
+
+    // minimum IP header length check
+    if((ip_hdr->ihl<<2) < sizeof(*ip_hdr))
+        return NULL;
+
+    if(ip_hdr)  
+        if((void *)ip_hdr + (ip_hdr->ihl<<2) + sizeof(*udp_hdr) > data_end)
+            return NULL;
+
+    if(ip_hdr->protocol == IPPROTO_UDP)
+        udp_hdr = (struct udphdr*)((void *)ip_hdr + (ip_hdr->ihl<<2));
+
+    return udp_hdr;
+}
+
+
+int is_http(struct __sk_buff *skb,int payload_offset){
 
     struct p_data * payload = NULL;
 
@@ -179,13 +211,10 @@ int is_http(struct __sk_buff *skb,int payload_offset,int total_pkt_len){
     return -2;
 }
 
-int is_port(struct tcphdr * tcp_hdr, int * alw_prt_list ){
+int is_port(int sport , int dport, int * alw_prt_list ){
 
-    if(!tcp_hdr || !alw_prt_list)
+    if(!alw_prt_list)
         return 0;
-
-    int sport = ntohs(tcp_hdr->source);
-    int dport = ntohs(tcp_hdr->dest);
 
     for(int i=0;i<PORT_LIST_SIZE;i++){
         if(alw_prt_list[i] == dport || alw_prt_list[i] == sport)
@@ -210,59 +239,85 @@ int handle_egress(struct __sk_buff *skb)
     void *data = (void *)(__u64)skb->data;
     struct ethhdr *eth = data;
 
+    //if IP    
     struct iphdr * ip = is_ip(eth,data_end);
     if(!ip){
         if(DEBUG_LEVEL_2) bpf_printk("HIT IP FILTER");
         goto EXIT;
     }
     int eth_hdr_len = sizeof(struct ethhdr);
-    
-    //if IS IP    
-    struct tcphdr * tcp = is_tcp(ip,data_end);
-    if(!tcp){
-        if(DEBUG_LEVEL_2) bpf_printk("HIT TCP FILTER");        
-        goto EXIT;
+        
+
+    int ip_hdr_len      =   (ip->ihl<<2);
+    __u16 total_pkt_len =   ntohs(ip->tot_len);
+
+    //if TCP/UDP
+
+    int src_port        =   0;    
+    int dest_port       =   0;     
+    int tl_hdr_len      =   0;        
+
+    if(ip->protocol == IPPROTO_TCP){
+
+        struct tcphdr * tcp = is_tcp(ip,data_end);
+        if(!tcp){
+            if(DEBUG_LEVEL_2) bpf_printk("HIT TCP FILTER");        
+            goto EXIT;
+        }
+        src_port    =   ntohs(tcp->source);
+        dest_port   =   ntohs(tcp->dest);  
+        tl_hdr_len  =   (tcp->doff<<2);    
     }
-    int ip_hdr_len = (ip->ihl<<2);
-    __u16 total_pkt_len = ntohs(ip->tot_len);
 
-    //if IS TCP
+    else if(ip->protocol == IPPROTO_UDP){
 
-    int port_flag = is_port(tcp,alw_prt_list);
+        struct  udphdr * udp = is_udp(ip,data_end);
+        if(!udp){
+            if(DEBUG_LEVEL_2) bpf_printk("HIT UDP FILTER");        
+            goto EXIT;
+        }
+
+        src_port    =   ntohs(udp->source);
+        dest_port   =   ntohs(udp->dest);  
+        tl_hdr_len  =   sizeof(*udp);    
+    }
+
+    // if PORT IS IN MONITOR LIST
+    int port_flag = is_port(src_port,dest_port,alw_prt_list);
+
     if(!port_flag){
         if(DEBUG_LEVEL_2) bpf_printk("HIT PORT FILTER");        
         goto EXIT;
     }
-    int src_port = ntohs(tcp->source);
-    int dest_port = ntohs(tcp->dest);    
-    int tcp_hdr_len = (tcp->doff<<2);
 
 
-    // if port is in alw_prt_list
-
-    if(( eth_hdr_len+ ip_hdr_len + tcp_hdr_len + MIN_HTTP_HEADER) > total_pkt_len ){
+    if(( eth_hdr_len+ ip_hdr_len + tl_hdr_len + MIN_HTTP_HEADER) > total_pkt_len ){
         if(DEBUG_LEVEL_1) bpf_printk("HIT HTTP LENGTH FILTER");        
         goto EXIT;
     }
     
-    int payload_offset = eth_hdr_len+ ip_hdr_len + tcp_hdr_len;
+    int payload_offset = eth_hdr_len+ ip_hdr_len + tl_hdr_len;
     
     // bpf_printk("struct Len : %d\t Tot len : %d",payload_offset,total_pkt_len);
 
-    bpf_skb_pull_data(skb,payload_offset+MIN_HTTP_HEADER);
+    int status = bpf_skb_pull_data(skb,total_pkt_len);
     
+    if(status==-1) {
+        if(DEBUG_LEVEL_1) 
+            bpf_printk("DATA pull failed");
+        goto EXIT;
+    }
     data = (void*)(__u64)skb->data; 
     data_end = (void*)(__u64)skb->data_end;
 
-    int http_flag = is_http(skb,payload_offset, total_pkt_len);
+    // if HTTP Request/Response
+
+    int http_flag = is_http(skb,payload_offset);
 
     if(http_flag <= 0 ){
         if(DEBUG_LEVEL_1) bpf_printk("HIT HTTP FILTER : %d",http_flag);        
         goto EXIT;
     }
-
-    // if is HTTP Request/Response
-
 
     ud_t * ud = NULL;
     u32 key = COUNTER_KEY;
@@ -290,7 +345,41 @@ int handle_egress(struct __sk_buff *skb)
                 bpf_map_update_elem(&user_map,&key,ud,BPF_ANY);
             }
         }
+
+        struct char500 * c_ptr = NULL;    
+        
+        if(((void*)data + payload_offset + sizeof(*c_ptr)) > data_end )
+            goto EXIT;
+              
+        c_ptr = (struct char500 *) ((void*)data+payload_offset);
+        int i=0;
+        for(i=0;i<(sizeof(*c_ptr)-4);i++){
+                if(c_ptr->c[i]=='\r' && c_ptr->c[i+1]=='\n' && c_ptr->c[i+2]=='\r' && c_ptr->c[i+3]=='\n')
+                    break;
+        }
+
+        if(DEBUG_LEVEL_1) bpf_printk("http header len %d",i);
+
+        int http_hdr_len  = i+4+1;
+
+        payload_offset +=http_hdr_len;
+
+        struct char100 * cptr = NULL;
+
+        if(((void*)data + payload_offset + sizeof(*cptr)) > data_end )
+            goto EXIT;
+
+
+        cptr = (struct char100 *) ((void*)data+payload_offset);
+
+        if(DEBUG_LEVEL_1) bpf_printk("char at %d : %d",i,cptr->c[0]);
+        if(DEBUG_LEVEL_1) bpf_printk("char at %d : %d",i,cptr->c[1]);
+        if(DEBUG_LEVEL_1) bpf_printk("char at %d : %d",i,cptr->c[2]);
+        if(DEBUG_LEVEL_1) bpf_printk("char at %d : %d",i,cptr->c[3]);
+
+           
     }
+
     else if(http_flag == GET_REQUEST){        
 
         // get request uri sub parts of size-range read at constant time
