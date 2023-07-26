@@ -339,12 +339,8 @@ int handle_egress(struct __sk_buff *skb)
 
         ud = (ud_t *)bpf_map_lookup_elem(&user_map,&key);
 
-        if(hr->scode[0]=='2' && hr->scode[1]=='0' && hr->scode[2]=='0'){
-            if(ud){        
-                ud->counter+=1;
-                bpf_map_update_elem(&user_map,&key,ud,BPF_ANY);
-            }
-        }
+        if(!(hr->scode[0]=='2' && hr->scode[1]=='0' && hr->scode[2]=='0'))
+            goto EXIT;
 
         struct char500 * c_ptr = NULL;    
         
@@ -353,31 +349,42 @@ int handle_egress(struct __sk_buff *skb)
               
         c_ptr = (struct char500 *) ((void*)data+payload_offset);
         int i=0;
+        int flag=0;
         for(i=0;i<(sizeof(*c_ptr)-4);i++){
-                if(c_ptr->c[i]=='\r' && c_ptr->c[i+1]=='\n' && c_ptr->c[i+2]=='\r' && c_ptr->c[i+3]=='\n')
-                    break;
+            if(flag==0 && c_ptr->c[i]=='\r' && c_ptr->c[i+1]=='\n' && c_ptr->c[i+2]=='\r' && c_ptr->c[i+3]=='\n')
+                flag=1;
+            else if(flag==1 && c_ptr->c[i]=='1')
+                flag=-1;
         }
 
-        if(DEBUG_LEVEL_1) bpf_printk("http header len %d",i);
-
-        int http_hdr_len  = i+4+1;
-
-        payload_offset +=http_hdr_len;
-
-        struct char100 * cptr = NULL;
-
-        if(((void*)data + payload_offset + sizeof(*cptr)) > data_end )
-            goto EXIT;
+        if(flag==-1){
+            if(c_ptr)
+                c_ptr->c[0]='G';
+            // if(ud){        
+            //     ud->counter+=1;
+            //     bpf_map_update_elem(&user_map,&key,ud,BPF_ANY);
+            // }
+        }
 
 
-        cptr = (struct char100 *) ((void*)data+payload_offset);
+        // if(DEBUG_LEVEL_1) bpf_printk("http header len %d",i);
 
-        if(DEBUG_LEVEL_1) bpf_printk("char at %d : %d",i,cptr->c[0]);
-        if(DEBUG_LEVEL_1) bpf_printk("char at %d : %d",i,cptr->c[1]);
-        if(DEBUG_LEVEL_1) bpf_printk("char at %d : %d",i,cptr->c[2]);
-        if(DEBUG_LEVEL_1) bpf_printk("char at %d : %d",i,cptr->c[3]);
+        // int http_hdr_len  = i+4+1;
 
-           
+        // payload_offset +=http_hdr_len;
+
+        // struct char100 * cptr = NULL;
+
+        // if(((void*)data + payload_offset + sizeof(*cptr)) > data_end )
+        //     goto EXIT;
+
+
+        // cptr = (struct char100 *) ((void*)data+payload_offset);
+
+        // if(DEBUG_LEVEL_1) bpf_printk("char at %d : %d",i,cptr->c[0]);
+        // if(DEBUG_LEVEL_1) bpf_printk("char at %d : %d",i,cptr->c[1]);
+        // if(DEBUG_LEVEL_1) bpf_printk("char at %d : %d",i,cptr->c[2]);
+        // if(DEBUG_LEVEL_1) bpf_printk("char at %d : %d",i,cptr->c[3]);           
     }
 
     else if(http_flag == GET_REQUEST){        
