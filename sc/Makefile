@@ -10,7 +10,7 @@ vmlinux:
 
 .PHONY: bpf
 bpf: vmlinux
-	clang -g -O2 -target bpf -D__TARGET_ARCH_x86_64 -c sc.bpf.c -o sc.bpf.o
+	clang -g -O1 -target bpf -D__TARGET_ARCH_x86_64 -c sc.bpf.c -o sc.bpf.o
 
 .PHONY: skel
 skel: bpf
