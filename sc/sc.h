@@ -1,8 +1,8 @@
 #ifndef __SC_H__
 #define __SC_H__
 
-#define COUNTER_KEY 1234
-
+#define COUNTER_KEY 1
+#define BPF_ANY 0
 typedef struct user_data{
 	int counter;
 }ud_t;	

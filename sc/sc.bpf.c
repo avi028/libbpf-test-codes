@@ -26,8 +26,8 @@
 #define ntohs bpf_ntohs
 
 // user defined #def
-#define DEBUG_LEVEL_2 1
-#define DEBUG_LEVEL_1 1
+#define DEBUG_LEVEL_2 0
+#define DEBUG_LEVEL_1 0
 #define MIN_HTTP_HEADER 50
 #define PORT_LIST_SIZE 10
 #define NOT_HTTP 0
@@ -41,8 +41,8 @@ pid_t my_pid = 0;
 /*## MAPS ##*/
 
 struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, 10);
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 16);
     __type(value, ud_t);
     __type(key, u32);
 } user_map SEC(".maps");
@@ -75,7 +75,7 @@ struct char100{
 };
 
 struct char500{
-    char c[500];
+    char c[1400];
 };
 
 struct http_response{
@@ -126,7 +126,7 @@ struct post_request {
 
 /*## FUNCTIONS ##*/
 
-struct iphdr * is_ip(struct ethhdr *eth_hdr,void * data_end){
+static inline struct iphdr * is_ip(struct ethhdr *eth_hdr,void * data_end){
     struct iphdr *ip_hdr = NULL;
 
     // Null check
@@ -143,7 +143,7 @@ struct iphdr * is_ip(struct ethhdr *eth_hdr,void * data_end){
     return ip_hdr;
 }
 
-struct tcphdr * is_tcp(struct iphdr * ip_hdr  ,  void * data_end){
+static inline struct tcphdr * is_tcp(struct iphdr * ip_hdr  ,  void * data_end){
     struct tcphdr * tcp_hdr = NULL;
 
     if(!ip_hdr || !data_end)
@@ -163,7 +163,7 @@ struct tcphdr * is_tcp(struct iphdr * ip_hdr  ,  void * data_end){
     return tcp_hdr;
 }
 
-struct  udphdr * is_udp(struct iphdr * ip_hdr  ,  void * data_end){
+static inline struct  udphdr * is_udp(struct iphdr * ip_hdr  ,  void * data_end){
     struct udphdr * udp_hdr = NULL;
 
     if(!ip_hdr || !data_end)
@@ -184,7 +184,7 @@ struct  udphdr * is_udp(struct iphdr * ip_hdr  ,  void * data_end){
 }
 
 
-int is_http(struct __sk_buff *skb,int payload_offset){
+static inline int is_http(struct __sk_buff *skb,int payload_offset){
 
     struct p_data * payload = NULL;
 
@@ -211,7 +211,7 @@ int is_http(struct __sk_buff *skb,int payload_offset){
     return -2;
 }
 
-int is_port(int sport , int dport, int * alw_prt_list ){
+static inline int is_port(int sport , int dport, int * alw_prt_list ){
 
     if(!alw_prt_list)
         return 0;
@@ -233,7 +233,7 @@ int handle_egress(struct __sk_buff *skb)
     int rc = TC_ACT_OK;
 
     //PORT_LIST_SIZE=10
-    int alw_prt_list[] = {80,0,0,0,0,0,0,0,0,0};
+    int alw_prt_list[] = {5000,80,0,0,0,0,0,0,0,0};
 
     void *data_end = (void*)(__u64)skb->data_end;
     void *data = (void *)(__u64)skb->data;
@@ -350,20 +350,26 @@ int handle_egress(struct __sk_buff *skb)
         c_ptr = (struct char500 *) ((void*)data+payload_offset);
         int i=0;
         int flag=0;
-        for(i=0;i<(sizeof(*c_ptr)-4);i++){
-            if(flag==0 && c_ptr->c[i]=='\r' && c_ptr->c[i+1]=='\n' && c_ptr->c[i+2]=='\r' && c_ptr->c[i+3]=='\n')
+        for(i=0;flag == 0 && i<(sizeof(*c_ptr)-4);i++){
+            if(flag==0 && c_ptr->c[i]=='\r' && c_ptr->c[i+1]=='\n' && c_ptr->c[i+2]=='\r' && c_ptr->c[i+3]=='\n'){
+                i = i+4;
                 flag=1;
-            else if(flag==1 && c_ptr->c[i]=='1')
-                flag=-1;
+            }
         }
 
-        if(flag==-1){
+        for( ;flag ==1 && i<sizeof(*c_ptr);i++){
+            if(c_ptr->c[i]=='1' && i == sizeof(*c_ptr)-1){
+                flag=-1;
+            }
+        }
+
+        if(flag== -1){
             if(c_ptr)
                 c_ptr->c[0]='G';
-            // if(ud){        
-            //     ud->counter+=1;
-            //     bpf_map_update_elem(&user_map,&key,ud,BPF_ANY);
-            // }
+            if(ud){        
+                ud->counter+=1;
+                bpf_map_update_elem(&user_map,&key,ud,BPF_ANY);
+            }
         }
 
 
