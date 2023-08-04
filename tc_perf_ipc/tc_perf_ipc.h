@@ -55,4 +55,15 @@ struct event {
 	char payload[MAX_SIZE];
 };
 
+
+key_t msg1 = 6123;
+
+int msgId;
+
+struct msgIPCbuf{
+    long int mtype;
+    char payload[MAX_SIZE];
+};
+
+
 #endif /* __TC_PERH_H */

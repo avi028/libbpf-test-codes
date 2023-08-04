@@ -1,22 +1,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <stdint.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <linux/pkt_cls.h>
 #include <linux/if_arp.h>
-#include <stdint.h>
 #include <arpa/inet.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
-#include <sys/resource.h>
 
-#include "tc_perf.h"
-#include "tc_perf.skel.h"
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/msg.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+
+#include "tc_perf_ipc.h"
+#include "tc_perf_ipc.skel.h"
 
 
 static volatile bool exiting = false;
@@ -42,35 +47,16 @@ void handle_evt(void *ctx, int cpu, void *data, unsigned int data_sz)
 {
 	const struct event *e = data;
 
-	long unsigned int n = sizeof(e->payload);
-	struct http_response *h = (struct http_response *) ((void*)(e->payload));
+    struct msgIPCbuf msg;
+    msg.mtype=1;
+    strcpy(msg.payload,e->payload);
 
-	// check http and status code 
-	//&& h->scode[0]=='2' && h->scode[1]=='0' && h->scode[2]=='0'
-	if(h->http[0]=='H' && h->http[1]=='T' && h->http[2]=='T' && h->http[3]=='P'){
-		int flag = 0 ;	
-		int http_header_len = 0;		
-		for(int i =0 ;i<n-3;i++){
-			http_header_len++;
-			if(e->payload[i]=='\r' && e->payload[i+1]=='\n' && e->payload[i+2]=='\r' && e->payload[i+3]=='\n'){
-				flag=1;
-				break;
-			}
-		}
-
-		http_header_len+=3;
-		if(flag==1)
-			for(int i = http_header_len ; i< n ;i ++){
-				// if(e->payload[i]==1)
-					flag=-1;
-			}
-
-		if(flag == -1){
-			counter++;			
-            printf("200 Status Count at: %d\r",counter);
-            fflush(stdout);
-		}
-	}
+    int status; 
+	status= msgsnd(msgId,&msg,sizeof(msg.payload),0);
+    if(status == -1){
+        perror("msg send error");
+        exit(EXIT_FAILURE);
+    }
 }
 
 
@@ -78,8 +64,57 @@ void handle_evt(void *ctx, int cpu, void *data, unsigned int data_sz)
 // ifindex 2 -> ethernet
 // ifindex 3 -> wifi
 
-int main(int argc, char **argv)
-{
+
+void logger(){
+
+    signal(SIGINT, sig_handler);
+    signal(SIGTERM, sig_handler);
+
+    struct msgIPCbuf msgC;
+    printf("Logger: waiting for msg\n");
+
+    while(!exiting){
+
+	    int status =msgrcv(msgId,&msgC,sizeof(msgC.payload),1,0);
+	    if(status == -1){
+	        perror("No msg received");
+	    }
+	    else{
+
+			long unsigned int n = sizeof(msgC.payload);
+			struct http_response *h = (struct http_response *) ((void*)(msgC.payload));
+
+			if(h->http[0]=='H' && h->http[1]=='T' && h->http[2]=='T' && h->http[3]=='P'){
+				int flag = 0 ;	
+				int http_header_len = 0;		
+				for(int i =0 ;i<n-3;i++){
+					http_header_len++;
+					if(msgC.payload[i]=='\r' && msgC.payload[i+1]=='\n' && msgC.payload[i+2]=='\r' && msgC.payload[i+3]=='\n'){
+						flag=1;
+						break;
+					}
+				}
+
+				http_header_len+=3;
+				if(flag==1)
+					for(int i = http_header_len ; i< n ;i ++){
+						// if(e->payload[i]==1)
+							flag=-1;
+					}
+
+				if(flag == -1){
+					counter++;			
+		            printf("200 Status Count at: %d\r",counter);
+		            fflush(stdout);
+				}
+			}
+	    }
+    }
+
+}
+
+void driver_code(){
+
     DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 1, .attach_point = BPF_TC_EGRESS);
     DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts, .handle = 1, .priority = 1);
 
@@ -89,12 +124,12 @@ int main(int argc, char **argv)
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
 
-    struct tc_perf *skel = tc_perf__open_and_load();
+    struct tc_perf_ipc *skel = tc_perf_ipc__open_and_load();
 
     if(skel == NULL)
     {
 		fprintf(stderr, "Failed to open and load BPF skeleton\n");
-        return 1;
+        return;
     }
 
     printf("Program Loaded\n");
@@ -147,7 +182,27 @@ int main(int argc, char **argv)
     int dtch = bpf_tc_detach(&hook, &opts);
     int dstr = bpf_tc_hook_destroy(&hook);
     printf("%d -- %d\n", dtch, dstr);
+	msgctl(msgId,IPC_RMID,0);
+	tc_perf_ipc__destroy(skel);    	
+}
 
-	tc_perf__destroy(skel);    
+int main(int argc, char **argv)
+{
+    msgId = msgget(msg1,IPC_CREAT|0666);
+ 
+    if(msgId==-1)
+    {
+        perror("Cannot get msg id ");
+        exit(0);
+    }
+    
+    int id = fork();
+    
+    if(id==0){
+    	logger();
+    }
+    else{
+    	driver_code();
+    }
     return 0;
 }

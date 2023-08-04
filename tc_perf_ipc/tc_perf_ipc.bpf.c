@@ -3,7 +3,7 @@
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_endian.h>
 
-#include "tc_perf.h"
+#include "tc_perf_ipc.h"
 
 //#include <linux/pkt_cls.h>
 #define TC_ACT_UNSPEC	(-1)
