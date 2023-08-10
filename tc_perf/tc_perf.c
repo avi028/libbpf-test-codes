@@ -12,7 +12,7 @@
 #include <bpf/libbpf.h>
 #include <unistd.h>
 #include <errno.h>
-#include <time.h>
+#include <sys/time.h>
 #include <sys/resource.h>
 
 #include "tc_perf.h"
@@ -67,12 +67,16 @@ void handle_evt(void *ctx, int cpu, void *data, unsigned int data_sz)
 
 		if(flag == -1){
 			counter++;			
-            printf("200 Status Count at: %d\r",counter);
-            fflush(stdout);
 		}
 	}
 }
 
+long long timeInMilliseconds(void) {
+    struct timeval tv;
+
+    gettimeofday(&tv,NULL);
+    return (((long long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
+}
 
 // ifindex 1 -> loopback
 // ifindex 2 -> ethernet
@@ -80,7 +84,7 @@ void handle_evt(void *ctx, int cpu, void *data, unsigned int data_sz)
 
 int main(int argc, char **argv)
 {
-    DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 1, .attach_point = BPF_TC_EGRESS);
+    DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 4, .attach_point = BPF_TC_INGRESS);
     DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts, .handle = 1, .priority = 1);
 
 	struct perf_buffer_opts pb_opts = {};
@@ -102,7 +106,7 @@ int main(int argc, char **argv)
     bpf_tc_hook_create(&hook);
 
     hook.attach_point = BPF_TC_CUSTOM;
-    hook.parent = TC_H_MAKE(TC_H_CLSACT, TC_H_MIN_EGRESS);
+    hook.parent = TC_H_MAKE(TC_H_CLSACT, TC_H_MIN_INGRESS);
 
     opts.prog_fd = bpf_program__fd(skel->progs.perf_packet);
     opts.prog_id = 0; 
@@ -125,6 +129,7 @@ int main(int argc, char **argv)
 		goto EXIT;
 	}
 
+	long long nextPrint = timeInMilliseconds()+2000;
 	/* Process events */
 	while (!exiting) {
 		err = perf_buffer__poll(pb, 1/* timeout, ms */);
@@ -137,8 +142,16 @@ int main(int argc, char **argv)
 			printf("Error polling perf buffer: %d\n", err);
 			break;
 		}
+		// long long current = timeInMilliseconds();
+		// if(current>nextPrint){
+		// 	printf("200 Status Count at: %d\r",counter);
+        //     fflush(stdout);
+		// 	nextPrint = current+2000;
+		// }
 	}
 
+	printf("200 Status Count at: %d\r",counter);
+	fflush(stdout);
 
 	EXIT: 
 
