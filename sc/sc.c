@@ -61,7 +61,7 @@ static int handle_evt(void *ctx, void *data, size_t sz)
 
 int main(int argc, char **argv)
     {
-    DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 1, .attach_point = BPF_TC_EGRESS);
+    DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 4, .attach_point = BPF_TC_INGRESS);
     DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts, .handle = 1, .priority = 1);
 
     signal(SIGINT, sig_handler);
@@ -84,7 +84,7 @@ int main(int argc, char **argv)
     bpf_tc_hook_create(&hook);
     hook.attach_point = BPF_TC_CUSTOM;
 
-    hook.parent = TC_H_MAKE(TC_H_CLSACT, TC_H_MIN_EGRESS);
+    hook.parent = TC_H_MAKE(TC_H_CLSACT, TC_H_MIN_INGRESS);
 
     opts.prog_fd = bpf_program__fd(skel->progs.handle_egress);
     opts.prog_id = 0; 

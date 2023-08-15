@@ -32,8 +32,10 @@
 #define FILTER "ether proto \\ip and dst host 172.16.10.1 and ip proto \\udp or \\tcp and dst port 5000"
 #define TIMEOUT 1000
 #define MAX_PARSE_SIZE 1400
+#define BUFFSIZE 20971520
 
 #define UDP_HLEN 8
+
 int counter = 0;
 pcap_t* descr;
 
@@ -113,6 +115,35 @@ void packetparser(u_char *useless,const struct pcap_pkthdr* pkthdr,const u_char*
     }
 }
 
+pcap_t *pcap_open_get_live(const char *device, int snaplen, int promisc, int to_ms, char *errbuf, int buffersize){
+    pcap_t * p;
+    int status;
+    p = pcap_create(device, errbuf);
+	if (p == NULL)
+		return (NULL);
+	status = pcap_set_snaplen(p, snaplen);
+	if (status < 0)
+		return (NULL);
+	status = pcap_set_promisc(p, promisc);
+	if (status < 0)
+		return (NULL);
+	status = pcap_set_timeout(p, to_ms);
+	if (status < 0)
+		return (NULL);
+
+    status = pcap_set_buffer_size(p, buffersize);
+    if(status != 0){
+        printf("buffer size set to default\n");
+    };
+
+    // p->oldstyle = 1;
+	status = pcap_activate(p);
+	if (status < 0)
+		return (NULL);
+	return (p);
+}
+
+
 int main(int argc,char **argv)
 { 
     signal(SIGINT, sig_handler);
@@ -145,9 +176,14 @@ int main(int argc,char **argv)
     unsigned int snaplen = argc < 2? BUFSIZ: atoi(argv[1]) == 1? MAX_PARSE_SIZE + (ETH_HLEN + 60+ 60): BUFSIZ;
     printf("SnapLen %d\n", snaplen);
 
-    descr = pcap_open_live(dev, snaplen, 0, TIMEOUT, errbuf);
+    descr = pcap_open_get_live(dev, snaplen, 0, TIMEOUT, errbuf, BUFFSIZE);
+    // descr = pcap_open_live(dev, snaplen, 0, TIMEOUT, errbuf);
     if(descr == NULL)
     { printf("pcap_open_live(): %s\n",errbuf); exit(1); }
+
+    // if(pcap_set_buffer_size(descr, BUFFSIZE) != 0){
+    //     printf("buffer size set to default\n");
+    // };
 
     /* Lets try and compile the program.. non-optimized */
     if(pcap_compile(descr, &fp, filter, 0, netp) == -1)
