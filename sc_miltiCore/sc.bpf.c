@@ -41,8 +41,8 @@ pid_t my_pid = 0;
 /*## MAPS ##*/
 
 struct {
-    __uint(type, BPF_MAP_TYPE_ARRAY);
-    __uint(max_entries, 16);
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(max_entries, MAX_ENTRIES);
     __type(value, ud_t);
     __type(key, u32);
 } user_map SEC(".maps");
@@ -215,6 +215,7 @@ static inline int is_port(int sport , int dport, int * alw_prt_list ){
 
     if(!alw_prt_list)
         return 0;
+    bpf_printk("%d %d\n", sport,dport);
 
     for(int i=0;i<PORT_LIST_SIZE;i++){
         if(alw_prt_list[i] == dport || alw_prt_list[i] == sport)
@@ -223,15 +224,6 @@ static inline int is_port(int sport , int dport, int * alw_prt_list ){
     return 0;
 }
 
-
-/*
-    HTTP/1.1 200 OK
-    Date: Mon, 21 Aug 2023 10:41:59 GMT
-    Server: Apache/2.4.41 (Ubuntu)
-    Vary: Accept-Encoding
-    Content-Length: 481 --> C-0,-7,:14, 15
-    Content-Type: text/html; charset=UTF-8
-*/
 
 /*## Driver Code ##*/
 
@@ -242,7 +234,7 @@ int handle_egress(struct __sk_buff *skb)
     int rc = TC_ACT_OK;
 
     //PORT_LIST_SIZE=10
-    int alw_prt_list[] = {5000,80,0,0,0,0,0,0,0,0};
+    int alw_prt_list[] = {80,0,0,0,0,0,0,0,0,0};
 
     void *data_end = (void*)(__u64)skb->data_end;
     void *data = (void *)(__u64)skb->data;
@@ -344,29 +336,34 @@ int handle_egress(struct __sk_buff *skb)
         hr = (struct http_response *) ((void *)data + payload_offset);
 
         for(int i=0;i<sizeof(hr->scode);i++)
-            if(DEBUG_LEVEL_2) bpf_printk("Http : %d",(hr->scode[i]-48));    
+            if(DEBUG_LEVEL_1) bpf_printk("Http : %d",(hr->scode[i]-48));    
 
         ud = (ud_t *)bpf_map_lookup_elem(&user_map,&key);
 
-        if(!(hr->scode[0]=='2' && hr->scode[1]=='0' && hr->scode[2]=='0')){
-            if(DEBUG_LEVEL_1) bpf_printk("Http : Status Code Filter");    
+        if(!(hr->scode[0]=='2' && hr->scode[1]=='0' && hr->scode[2]=='0'))
             goto EXIT;
-        }
 
         struct char500 * c_ptr = NULL;    
         
-        if(((void*)data + payload_offset + sizeof(*c_ptr)) > data_end ){
-            if(DEBUG_LEVEL_1) bpf_printk("Http : Buffer Length Filter");    
+        if(((void*)data + payload_offset + sizeof(*c_ptr)) > data_end )
             goto EXIT;
-        }
               
         c_ptr = (struct char500 *) ((void*)data+payload_offset);
         int i=0;
         int flag=0;
 
-        /*C-0,-7,:14, 15*/
+        // for(i=0;flag == 0 && i<(sizeof(*c_ptr)-4);i++){
+        //     if(flag==0 && c_ptr->c[i]=='\r' && c_ptr->c[i+1]=='\n' && c_ptr->c[i+2]=='\r' && c_ptr->c[i+3]=='\n'){
+        //         i = i+4;
+        //         flag=1;
+        //     }
+        // }
 
-        int http_header_len=0;
+        // for( ;flag ==1 && i<sizeof(*c_ptr);i++){
+        //     if(c_ptr->c[i]=='1' && i == sizeof(*c_ptr)-1){
+        //         flag=-1;
+        //     }
+        // }
 
         for(i=0; i<(sizeof(*c_ptr)-4);i++){
 
@@ -380,7 +377,6 @@ int handle_egress(struct __sk_buff *skb)
             }
         }
 
-        if(DEBUG_LEVEL_1) bpf_printk(" payload_length   : %d",http_header_len);    
 
         // for(; flag ==1 && i<sizeof(c_ptr->c);i++){
         //     if( c_ptr->c[i]=='1' && i == (sizeof(*c_ptr)-1) ) {
@@ -389,6 +385,8 @@ int handle_egress(struct __sk_buff *skb)
         // }
 
         if(flag== -1){
+            // if(c_ptr)
+            //     c_ptr->c[0]='G';
             if(ud){        
                 ud->counter+=1;
                 bpf_map_update_elem(&user_map,&key,ud,BPF_ANY);
@@ -416,56 +414,56 @@ int handle_egress(struct __sk_buff *skb)
         // if(DEBUG_LEVEL_1) bpf_printk("char at %d : %d",i,cptr->c[3]);           
     }
 
-    // else if(http_flag == GET_REQUEST){        
+    else if(http_flag == GET_REQUEST){        
 
-    //     // get request uri sub parts of size-range read at constant time
-    //     if(DEBUG_LEVEL_1) bpf_printk("SENT GET REQUEST FROM PORT\t%d",src_port);                
+        // get request uri sub parts of size-range read at constant time
+        if(DEBUG_LEVEL_1) bpf_printk("SENT GET REQUEST FROM PORT\t%d",src_port);                
 
-    //     struct get_request_s * grs = NULL;
-    //     struct get_request_l * grl = NULL;
+        struct get_request_s * grs = NULL;
+        struct get_request_l * grl = NULL;
         
-    //     // set the smallest uri-length test first
-    //     if(((void *) data + payload_offset + sizeof(*grs)) > data_end)
-    //         goto EXIT;
+        // set the smallest uri-length test first
+        if(((void *) data + payload_offset + sizeof(*grs)) > data_end)
+            goto EXIT;
 
-    //     grs = (struct get_request_s *) ((void*)data + payload_offset);
-    //     if(grs->end == '\r'){
-    //         for(int i=0;i<sizeof(grs->uri.p2);i++)
-    //             if(DEBUG_LEVEL_1)  bpf_printk("uri[%d] : %d",i,(grs->uri.p2[i]));    
-    //         goto EXIT;
-    //     }
+        grs = (struct get_request_s *) ((void*)data + payload_offset);
+        if(grs->end == '\r'){
+            for(int i=0;i<sizeof(grs->uri.p2);i++)
+                if(DEBUG_LEVEL_1)  bpf_printk("uri[%d] : %d",i,(grs->uri.p2[i]));    
+            goto EXIT;
+        }
     
-    //     // set the second smallest uri-length test
-    //     if(((void *) data + payload_offset + sizeof(*grl)) > data_end)
-    //         goto EXIT;
+        // set the second smallest uri-length test
+        if(((void *) data + payload_offset + sizeof(*grl)) > data_end)
+            goto EXIT;
 
-    //     grl = (struct get_request_l *) ((void*)data + payload_offset);
-    //     if(grl->end == '\r'){
-    //         for(int i=0;i<sizeof(grl->uri.p2);i++)
-    //             if(DEBUG_LEVEL_1) bpf_printk("uri[%d] : %d",i,(grl->uri.p2[i]));    
-    //         goto EXIT;
-    //     }
+        grl = (struct get_request_l *) ((void*)data + payload_offset);
+        if(grl->end == '\r'){
+            for(int i=0;i<sizeof(grl->uri.p2);i++)
+                if(DEBUG_LEVEL_1) bpf_printk("uri[%d] : %d",i,(grl->uri.p2[i]));    
+            goto EXIT;
+        }
 
-    //     // set the third smallest uri-length test 
+        // set the third smallest uri-length test 
 
-    //     // code ....
+        // code ....
 
-    // }
+    }
 
-    // else if(http_flag == POST_REQUEST){
+    else if(http_flag == POST_REQUEST){
 
-    //     // get request uri of constant size read at constant time
-    //     if(DEBUG_LEVEL_1) bpf_printk("SENT POST REQUEST FROM PORT\t%d",src_port);
+        // get request uri of constant size read at constant time
+        if(DEBUG_LEVEL_1) bpf_printk("SENT POST REQUEST FROM PORT\t%d",src_port);
 
-    //     struct post_request * gr = NULL;
+        struct post_request * gr = NULL;
 
-    //     if(((void *) data + payload_offset + sizeof(*gr)) > data_end)
-    //         goto EXIT;
+        if(((void *) data + payload_offset + sizeof(*gr)) > data_end)
+            goto EXIT;
 
-    //     gr = (struct post_request *) ((void*)data + payload_offset);
-    //     for(int i=0;i<sizeof(gr->uri);i++)
-    //         if(DEBUG_LEVEL_1)  bpf_printk("uri[%d] : %d",i,(gr->uri[i]));
-    // }
+        gr = (struct post_request *) ((void*)data + payload_offset);
+        for(int i=0;i<sizeof(gr->uri);i++)
+            if(DEBUG_LEVEL_1)  bpf_printk("uri[%d] : %d",i,(gr->uri[i]));
+    }
 
 ERROR:
 
@@ -479,15 +477,3 @@ char LICENSE[] SEC("license") = "GPL";
 /*-------------------------------------------*/
 // char fmt [] = "count : %d\n";
 // int fmt_size = sizeof(fmt);
-
-/*
-{"name":"111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111","age":"11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"}
-
-    
-Date: Mon, 21 Aug 2023 10:56:39 GMT
-Server: Apache/2.4.41 (Ubuntu)
-Vary: Accept-Encoding
-Content-Length: 481
-Content-Type: text/html; charset=UTF-8
-
-*/

@@ -55,13 +55,31 @@ static int handle_evt(void *ctx, void *data, size_t sz)
 }
 
 
+int initialize_bpf_array(int fd)
+{
+        int ncpus = libbpf_num_possible_cpus();
+        ud_t  ud[ncpus];
+        __u32 i, j;
+        int ret;
+
+        for (i = 0; i < MAX_ENTRIES ; i++) {
+                for (j = 0; j < ncpus; j++)
+                        ud[j].counter = 0;
+                ret = bpf_map_update_elem(fd, &i, &ud, BPF_ANY);
+                if (ret < 0)
+                        return ret;
+        }
+
+        return ret;
+}
+
 // ifindex 1 -> loopback
 // ifindex 2 -> ethernet
 // ifindex 3 -> wifi
 
 int main(int argc, char **argv)
-    {
-    DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 1, .attach_point = BPF_TC_INGRESS);
+{
+    DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 1, .attach_point = BPF_TC_EGRESS);
     DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts, .handle = 1, .priority = 1);
 
     signal(SIGINT, sig_handler);
@@ -84,7 +102,7 @@ int main(int argc, char **argv)
     bpf_tc_hook_create(&hook);
     hook.attach_point = BPF_TC_CUSTOM;
 
-    hook.parent = TC_H_MAKE(TC_H_CLSACT, TC_H_MIN_INGRESS);
+    hook.parent = TC_H_MAKE(TC_H_CLSACT, TC_H_MIN_EGRESS);
 
     opts.prog_fd = bpf_program__fd(skel->progs.handle_egress);
     opts.prog_id = 0; 
@@ -93,22 +111,37 @@ int main(int argc, char **argv)
     
     bpf_tc_attach(&hook, &opts);
     printf("Program Attached\n");
-    
+    int num_cpus = libbpf_num_possible_cpus();    
+    printf("INFO : CPU's - %d\n",num_cpus);
+
     int map_fd = bpf_map__fd(skel->maps.user_map);
-    ud_t  ud;
-    ud.counter = 0;
+
+    initialize_bpf_array(map_fd);
+
+    // __u32 value_size = bpf_map__value_size(skel->maps.user_map);
+    // printf("INFO : Value Size - %d\n",value_size);
+    // printf("INFO : ud_t size - %d\n",sizeof(ud_t));
+    ud_t  * ud = (ud_t*)malloc(sizeof(ud_t)*num_cpus);
     unsigned int  key  = COUNTER_KEY;
 
-    bpf_map_update_elem(map_fd,&key,&ud,BPF_ANY);
+    int sum = 0,i=0;
 
     while(exiting!=true){
-        int status = bpf_map_lookup_elem(map_fd,&key,&ud);
+        int status = bpf_map_lookup_elem(map_fd,&key,ud);
         // printf("map status %d", status);
         if(status!=-1){
-            printf("200 Status Count: %d\r",ud.counter);
-            fflush(stdout);
+            sum=0;
+            for(i=0;i<num_cpus;i++){
+                if(ud[i].counter > 0 ){
+                    sum += ud[i].counter;                
+                    // printf("cpu Id: %d , ud[%d].counter : %d \r\n " , i,i,ud[i].counter);
+                }
+            }
+
+            printf("200 Status Count: %d\r",sum);
+                    fflush(stdout);
         }
-        sleep(1);
+        // sleep(1);
     }
     printf("\n");
     close(map_fd);
