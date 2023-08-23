@@ -26,8 +26,6 @@
 #define ntohs bpf_ntohs
 
 // user defined #def
-#define DEBUG_LEVEL_2 1
-#define DEBUG_LEVEL_1 1
 #define MIN_HTTP_HEADER 50
 #define PORT_LIST_SIZE 10
 #define NOT_HTTP 0

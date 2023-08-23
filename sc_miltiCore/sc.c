@@ -116,26 +116,37 @@ int main(int argc, char **argv)
 
     int map_fd = bpf_map__fd(skel->maps.user_map);
 
-    initialize_bpf_array(map_fd);
+    // initialize_bpf_array(map_fd);
 
-    // __u32 value_size = bpf_map__value_size(skel->maps.user_map);
-    // printf("INFO : Value Size - %d\n",value_size);
-    // printf("INFO : ud_t size - %d\n",sizeof(ud_t));
-    ud_t  * ud = (ud_t*)malloc(sizeof(ud_t)*num_cpus);
+    __u32 value_size = bpf_map__value_size(skel->maps.user_map);
+    printf("INFO : Value Size - %d\n",value_size);
+    printf("INFO : ud_t size - %d\n",sizeof(ud_t));
+
+    void * ud_data = (void *)malloc(8*num_cpus);
+
     unsigned int  key  = COUNTER_KEY;
 
     int sum = 0,i=0;
+    
+    // for(i=0;i<num_cpus;i++){
+    //     ud[i].counter = 0;
+    // }
+    // bpf_map_update_elem(map_fd,&key,ud,BPF_ANY);
+
+    // for(i=0;i<num_cpus;i++){
+    //     sum += ud[i].counter ;
+    // }
+
+    // if(DEBUG_LEVEL_2) printf("Initial sum : %d\n",sum);
 
     while(exiting!=true){
-        int status = bpf_map_lookup_elem(map_fd,&key,ud);
+        int status = bpf_map_lookup_elem(map_fd,&key,ud_data);
         // printf("map status %d", status);
         if(status!=-1){
             sum=0;
             for(i=0;i<num_cpus;i++){
-                if(ud[i].counter > 0 ){
-                    sum += ud[i].counter;                
+                     sum+=(int)*((long *)ud_data + i);                
                     // printf("cpu Id: %d , ud[%d].counter : %d \r\n " , i,i,ud[i].counter);
-                }
             }
 
             printf("200 Status Count: %d\r",sum);
