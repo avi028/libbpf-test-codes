@@ -61,7 +61,7 @@ static int handle_evt(void *ctx, void *data, size_t sz)
 
 int main(int argc, char **argv)
     {
-    DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 1, .attach_point = BPF_TC_INGRESS);
+    DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 4, .attach_point = BPF_TC_INGRESS);
     DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts, .handle = 1, .priority = 1);
 
     signal(SIGINT, sig_handler);
