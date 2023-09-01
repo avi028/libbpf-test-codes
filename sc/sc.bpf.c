@@ -26,8 +26,8 @@
 #define ntohs bpf_ntohs
 
 // user defined #def
-#define DEBUG_LEVEL_2 1
-#define DEBUG_LEVEL_1 1
+#define DEBUG_LEVEL_2 0
+#define DEBUG_LEVEL_1 0
 #define MIN_HTTP_HEADER 50
 #define PORT_LIST_SIZE 10
 #define NOT_HTTP 0
@@ -75,7 +75,7 @@ struct char100{
 };
 
 struct char500{
-    char c[500];
+    char c[200];
 };
 
 struct http_response{

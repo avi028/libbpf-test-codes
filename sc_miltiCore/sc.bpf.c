@@ -73,7 +73,7 @@ struct char100{
 };
 
 struct char500{
-    char c[500];
+    char c[1400];
 };
 
 struct http_response{
@@ -213,7 +213,7 @@ static inline int is_port(int sport , int dport, int * alw_prt_list ){
 
     if(!alw_prt_list)
         return 0;
-    bpf_printk("%d %d\n", sport,dport);
+    // bpf_printk("%d %d\n", sport,dport);
 
     for(int i=0;i<PORT_LIST_SIZE;i++){
         if(alw_prt_list[i] == dport || alw_prt_list[i] == sport)
@@ -232,7 +232,7 @@ int handle_egress(struct __sk_buff *skb)
     int rc = TC_ACT_OK;
 
     //PORT_LIST_SIZE=10
-    int alw_prt_list[] = {80,0,0,0,0,0,0,0,0,0};
+    int alw_prt_list[] = {80,5000,0,0,0,0,0,0,0,0};
 
     void *data_end = (void*)(__u64)skb->data_end;
     void *data = (void *)(__u64)skb->data;
@@ -283,6 +283,15 @@ int handle_egress(struct __sk_buff *skb)
 
     // if PORT IS IN MONITOR LIST
     int port_flag = is_port(src_port,dest_port,alw_prt_list);
+    
+    // ud_t * udt = NULL;
+    // u32 init_key = INIT_COUNTER;
+    // udt = (ud_t *)bpf_map_lookup_elem(&user_map,&init_key);
+    // if(udt){        
+    //     udt->counter+=1;
+    //     bpf_map_update_elem(&user_map,&init_key,udt,BPF_ANY);
+    // }
+
 
     if(!port_flag){
         if(DEBUG_LEVEL_2) bpf_printk("HIT PORT FILTER");        
@@ -318,8 +327,6 @@ int handle_egress(struct __sk_buff *skb)
         goto EXIT;
     }
 
-    ud_t * ud = NULL;
-    u32 key = COUNTER_KEY;
 
     if(http_flag==HTTP_RESPONSE){
     
@@ -336,7 +343,6 @@ int handle_egress(struct __sk_buff *skb)
         for(int i=0;i<sizeof(hr->scode);i++)
             if(DEBUG_LEVEL_1) bpf_printk("Http : %d",(hr->scode[i]-48));    
 
-        ud = (ud_t *)bpf_map_lookup_elem(&user_map,&key);
 
         if(!(hr->scode[0]=='2' && hr->scode[1]=='0' && hr->scode[2]=='0'))
             goto EXIT;
@@ -385,6 +391,9 @@ int handle_egress(struct __sk_buff *skb)
         if(flag== -1){
             // if(c_ptr)
             //     c_ptr->c[0]='G';
+            ud_t * ud = NULL;
+            u32 key = COUNTER_KEY;
+            ud = (ud_t *)bpf_map_lookup_elem(&user_map,&key);
             if(ud){        
                 ud->counter+=1;
                 bpf_map_update_elem(&user_map,&key,ud,BPF_ANY);

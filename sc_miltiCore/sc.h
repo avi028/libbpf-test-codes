@@ -3,9 +3,10 @@
 
 #define MAX_ENTRIES 1
 #define COUNTER_KEY 0
+#define INIT_COUNTER 1
 
-#define DEBUG_LEVEL_2 1
-#define DEBUG_LEVEL_1 1
+#define DEBUG_LEVEL_2 0
+#define DEBUG_LEVEL_1 0
 
 #define BPF_ANY 0
 typedef struct user_data{
