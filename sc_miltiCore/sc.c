@@ -79,7 +79,7 @@ int initialize_bpf_array(int fd)
 
 int main(int argc, char **argv)
 {
-    DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 1, .attach_point = BPF_TC_EGRESS);
+    DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 8, .attach_point = BPF_TC_INGRESS);
     DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts, .handle = 1, .priority = 1);
 
     signal(SIGINT, sig_handler);
@@ -102,7 +102,7 @@ int main(int argc, char **argv)
     bpf_tc_hook_create(&hook);
     hook.attach_point = BPF_TC_CUSTOM;
 
-    hook.parent = TC_H_MAKE(TC_H_CLSACT, TC_H_MIN_EGRESS);
+    hook.parent = TC_H_MAKE(TC_H_CLSACT, TC_H_MIN_INGRESS);
 
     opts.prog_fd = bpf_program__fd(skel->progs.handle_egress);
     opts.prog_id = 0; 
@@ -120,11 +120,12 @@ int main(int argc, char **argv)
 
     __u32 value_size = bpf_map__value_size(skel->maps.user_map);
     printf("INFO : Value Size - %d\n",value_size);
-    printf("INFO : ud_t size - %d\n",sizeof(ud_t));
+    printf("INFO : ud_t size - %lu\n",sizeof(ud_t));
 
     void * ud_data = (void *)malloc(8*num_cpus);
 
     unsigned int  key  = COUNTER_KEY;
+    unsigned int  init_key  = INIT_COUNTER;
 
     int sum = 0,i=0;
     
@@ -145,14 +146,22 @@ int main(int argc, char **argv)
         if(status!=-1){
             sum=0;
             for(i=0;i<num_cpus;i++){
-                     sum+=(int)*((long *)ud_data + i);                
-                    // printf("cpu Id: %d , ud[%d].counter : %d \r\n " , i,i,ud[i].counter);
+                sum+=(int)*((long *)ud_data + i);                
             }
 
+            // status = bpf_map_lookup_elem(map_fd,&init_key,ud_data);
+            // int sum2=-0;
+            // if(status!=-1){
+            //     sum2=0;
+            //     for(i=0;i<num_cpus;i++){
+            //         sum2+=(int)*((long *)ud_data + i);                
+            //     }
+            // }
+            // printf("200 Status Count: %d   INit Count : %d\r",sum,sum2);
             printf("200 Status Count: %d\r",sum);
-                    fflush(stdout);
+            fflush(stdout);
         }
-        // sleep(1);
+        sleep(1);
     }
     printf("\n");
     close(map_fd);
