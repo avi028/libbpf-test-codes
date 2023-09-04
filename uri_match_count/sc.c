@@ -79,7 +79,7 @@ int initialize_bpf_array(int fd)
 
 int main(int argc, char **argv)
 {
-    DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = 8, .attach_point = BPF_TC_INGRESS);
+    DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = INTERFACE_INDEX, .attach_point = BPF_TC_INGRESS);
     DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts, .handle = 1, .priority = 1);
 
     signal(SIGINT, sig_handler);
@@ -125,20 +125,13 @@ int main(int argc, char **argv)
     void * ud_data = (void *)malloc(8*num_cpus);
 
     unsigned int  key  = COUNTER_KEY;
-    unsigned int  init_key  = INIT_COUNTER;
 
     int sum = 0,i=0;
-    
-    // for(i=0;i<num_cpus;i++){
-    //     ud[i].counter = 0;
+    // key = UURI_KEY;  
+    // int status = bpf_map_lookup_elem(uri_map_fd,&key,ud_data);
+    // if(status!=-1){
+    //     ud_data
     // }
-    // bpf_map_update_elem(map_fd,&key,ud,BPF_ANY);
-
-    // for(i=0;i<num_cpus;i++){
-    //     sum += ud[i].counter ;
-    // }
-
-    // if(DEBUG_LEVEL_2) printf("Initial sum : %d\n",sum);
 
     while(exiting!=true){
         int status = bpf_map_lookup_elem(map_fd,&key,ud_data);
@@ -148,7 +141,17 @@ int main(int argc, char **argv)
             for(i=0;i<num_cpus;i++){
                 sum+=(int)*((long *)ud_data + i);                
             }
-            printf("200 Status Count: %d\r",sum);
+
+            // status = bpf_map_lookup_elem(map_fd,&init_key,ud_data);
+            // int sum2=-0;
+            // if(status!=-1){
+            //     sum2=0;
+            //     for(i=0;i<num_cpus;i++){
+            //         sum2+=(int)*((long *)ud_data + i);                
+            //     }
+            // }
+            // printf("200 Status Count: %d   INit Count : %d\r",sum,sum2);
+            printf("URI OCCUR Count: %d\r",sum);
             fflush(stdout);
         }
         sleep(1);
