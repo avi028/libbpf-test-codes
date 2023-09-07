@@ -11,7 +11,7 @@
 
 
 // map related config
-#define MAX_ENTRIES 1
+#define MAX_ENTRIES 64
 #define MAX_URI_MAP_ENTRIES 10
 
 #define COUNTER_KEY 0

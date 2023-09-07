@@ -36,17 +36,13 @@ Registration URI's for AMF-AUSF Communication:
     * POST - 3
     * DELETE -5
 
-4. KEYS : for the given set of uri's
+4. KEYS : for the given set of uri's - [URI ID]\*10+[Protocol ID]
 
-    * 30 - POST /nausf-auth/v1/ue-authentications
-    * 32 - POST /nausf-auth/v1/ue-authentications/hex(8)-hex(4)-hex(4)-hex(4)-hex(12)/eap-session
-    * 31 - POST /nausf-auth/v1/ue-authentications/deregister
-    * 43 - PUT /nausf-auth/v1/ue-authentications/hex(8)-hex(4)-hex(4)-hex(4)-hex(12)/5g-aka-confirmation 
-    * 53 - DELETE /nausf-auth/v1/ue-authentications/hex(8)-hex(4)-hex(4)-hex(4)-hex(12)/5g-aka-confirmation 
-    * 52 - DELETE /nausf-auth/v1/ue-authentications/hex(8)-hex(4)-hex(4)-hex(4)-hex(12)/eap-session 
-
-
-
-
+    * 03 - POST /nausf-auth/v1/ue-authentications
+    * 23 - POST /nausf-auth/v1/ue-authentications/hex(8)-hex(4)-hex(4)-hex(4)-hex(12)/eap-session
+    * 13 - POST /nausf-auth/v1/ue-authentications/deregister
+    * 34 - PUT /nausf-auth/v1/ue-authentications/hex(8)-hex(4)-hex(4)-hex(4)-hex(12)/5g-aka-confirmation 
+    * 35 - DELETE /nausf-auth/v1/ue-authentications/hex(8)-hex(4)-hex(4)-hex(4)-hex(12)/5g-aka-confirmation 
+    * 25 - DELETE /nausf-auth/v1/ue-authentications/hex(8)-hex(4)-hex(4)-hex(4)-hex(12)/eap-session 
 
 

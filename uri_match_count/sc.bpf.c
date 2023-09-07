@@ -6,16 +6,16 @@
 #include "sc.h"
 
 //#include <linux/pkt_cls.h>
-#define TC_ACT_UNSPEC	(-1)
-#define TC_ACT_OK		0
-#define TC_ACT_RECLASSIFY	1
-#define TC_ACT_SHOT		2
-#define TC_ACT_PIPE		3
-#define TC_ACT_STOLEN		4
-#define TC_ACT_QUEUED		5
-#define TC_ACT_REPEAT		6
-#define TC_ACT_REDIRECT		7
-#define TC_ACT_TRAP		8
+#define TC_ACT_UNSPEC   (-1)
+#define TC_ACT_OK       0
+#define TC_ACT_RECLASSIFY   1
+#define TC_ACT_SHOT     2
+#define TC_ACT_PIPE     3
+#define TC_ACT_STOLEN       4
+#define TC_ACT_QUEUED       5
+#define TC_ACT_REPEAT       6
+#define TC_ACT_REDIRECT     7
+#define TC_ACT_TRAP     8
 
 // #def not available in vmlinux.h
 #define ETH_P_IP    0x0800
@@ -33,6 +33,7 @@
 #define GET_REQUEST 2
 #define POST_REQUEST 3
 #define PUT_REQUEST 4
+#define DELETE_REQUEST 5
 
 /*## Globals ##*/
 pid_t my_pid = 0;
@@ -226,8 +227,6 @@ static inline int is_http(struct __sk_buff *skb,int payload_offset){
     if(payload->load[0]=='P' && payload->load[1]=='O' && payload->load[2]=='S' && payload->load[3]=='T')        
         return POST_REQUEST;
 
-    if(payload->load[0]=='P' && payload->load[1]=='U' && payload->load[2]=='T' )        
-        return PUT_REQUEST;
     return -2;
 }
 
@@ -247,11 +246,6 @@ SEC("classifier")
 
 int handle_egress(struct __sk_buff *skb)
 {
-    int rc = TC_ACT_OK;
-
-    //PORT_LIST_SIZE=10
-    // int alw_prt_list[] = {80,5000,0,0,0,0,0,0,0,0};
-
     void *data_end = (void*)(__u64)skb->data_end;
     void *data = (void *)(__u64)skb->data;
     struct ethhdr *eth = data;
@@ -321,7 +315,7 @@ int handle_egress(struct __sk_buff *skb)
     
     if(status==-1) {
         if(DEBUG_LEVEL_1) 
-            bpf_printk("ERROR  : DATA pull failed");
+            bpf_printk("ERROR : DATA pull failed");
         goto EXIT;
     }
 
@@ -400,7 +394,7 @@ URI_NOT_MATCH:
 
 EXIT:
     if(DEBUG_LEVEL_1) bpf_printk("-------------  Code Over  ---------------\n");
-	return rc;
+    return TC_ACT_OK;
 }
 
 char LICENSE[] SEC("license") = "GPL";

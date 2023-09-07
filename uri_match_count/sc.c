@@ -4,6 +4,7 @@
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <net/if.h>
 #include <linux/pkt_cls.h>
 #include <linux/if_arp.h>
 #include <stdint.h>
