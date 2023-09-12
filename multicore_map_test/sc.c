@@ -65,27 +65,29 @@ int main(int argc, char **argv)
     // get map fd
     int map_fd = bpf_map__fd(skel->maps.user_map);
 
-    // initialize the map with zeros
-    unsigned int key_set [6] = {3,13,23,25,34,35};
-    unsigned int  key;
+    char key_set [4][100] = {"111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+                             "222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222",
+                             "333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+                             "444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444"};
 
     __u32 value_size = bpf_map__value_size(skel->maps.user_map);
     void * ud_data = (void *)malloc(roundup(value_size,8)*num_cpus);
 
-    int per_cpu_sum;
     int status;
+    int sum;
     printf("STATUS :\n");
     while(exiting!=true){    
-        for(int itr=0;itr<6;itr++){
-            key = key_set[itr];
+        for(int itr=0;itr<4;itr++){
+            mapkey_t key ;
+            strcpy(&key.key[0],key_set[itr]);
             status = bpf_map_lookup_elem(map_fd,&key,ud_data);
             if(status!=-1){
-            per_cpu_sum=0;
+            sum=0;
             for(int i=0;i<num_cpus;i++){
-                    per_cpu_sum+=(int)*((long *)ud_data + i);
+                    sum+=(int)*((long *)ud_data + i);
                 }
             }
-            printf("URI%d\t%d\t",itr+1,per_cpu_sum);
+            printf("KEY%d\t%d\t",itr+1,sum);
         }
         printf("\r");    
         fflush(stdout);

@@ -13,13 +13,18 @@
 #define BPF_ANY 0
 
 // map related config
-#define MAX_ENTRIES 64
-#define COUNTER_KEY 0
+#define MAX_ENTRIES 8
+#define KEY_SIZE 100
 
-// map value 
+// map key
+typedef struct key_info{
+	char key[KEY_SIZE];
+}mapkey_t;	
+
+//map value
 typedef struct user_data{
 	int counter;
-}ud_t;	
+}ud_t;
 
 
 #endif //__SC_H__
