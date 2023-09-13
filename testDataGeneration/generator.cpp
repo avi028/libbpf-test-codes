@@ -17,7 +17,7 @@ using namespace std;
 /* 
 	Uncomment below line for variable imn key size
 */
-// #define VAR_VALUE_SIZE
+#define VAR_VALUE_SIZE
 
 int main(){
 
@@ -54,10 +54,10 @@ int main(){
 			key_itr=(rand())%KEY_SET_SIZE;
 		}
 		marked_keys.insert(key_itr);
-		final_out.push_back("\""+attr+"\":\""+key_set[key_itr]+"\",\n");
+		final_out.push_back("\""+attr+"\":\""+key_set[key_itr]+"\",");
 	}
 
-	cout<<"{\n";
+	cout<<"{";
 
 	#ifdef VAR_LOCATION
 		cerr<<"VAR_LOCATION\n";
@@ -80,7 +80,7 @@ int main(){
 
 	#endif
 	
-	cout<<"}\n";
+	cout<<"}";
 
 	return 0;
 }

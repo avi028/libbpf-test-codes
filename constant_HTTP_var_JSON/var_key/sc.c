@@ -41,11 +41,11 @@ int main(int argc, char **argv)
     }
     printf("INFO : Program Loaded\n");
 
-    if(skel->bss == NULL){
-        printf("INFO : No Global Var Support\n");
-    }    
-    else
-        skel->bss->my_pid = getpid();
+    // if(skel->bss == NULL){
+    //     printf("INFO : No Global Var Support\n");
+    // }    
+    // else
+    //     skel->bss->my_pid = getpid();
 
     bpf_tc_hook_create(&hook);
     hook.attach_point = BPF_TC_CUSTOM;
@@ -59,14 +59,22 @@ int main(int argc, char **argv)
     
     bpf_tc_attach(&hook, &opts);
     printf("INFO : Program Attached\n");
-    int num_cpus = libbpf_num_possible_cpus();    
-    printf("INFO : CPU's - %d\n",num_cpus);
+    #ifdef MULTI_CORE
+        int num_cpus = libbpf_num_possible_cpus();   
+    #else 
+        int num_cpus = 1;   
+    #endif
+    printf("INFO : CPU's used :: %d\n",num_cpus);
 
     // get map fd
     int map_fd = bpf_map__fd(skel->maps.user_map);
 
-    // initialize the map with zeros
-    unsigned int key_set [6] = {3,13,23,25,34,35};
+    /*
+        POST abcde      ->  15
+        POST abcdefghij ->  30
+    */
+    const int key_set_size = 3;
+    unsigned int key_set [key_set_size] = {3, 15,30};
     unsigned int  key;
 
     __u32 value_size = bpf_map__value_size(skel->maps.user_map);
@@ -76,7 +84,7 @@ int main(int argc, char **argv)
     int status;
     printf("STATUS :\n");
     while(exiting!=true){    
-        for(int itr=0;itr<6;itr++){
+        for(int itr=0;itr<key_set_size;itr++){
             key = key_set[itr];
             status = bpf_map_lookup_elem(map_fd,&key,ud_data);
             if(status!=-1){
@@ -85,7 +93,7 @@ int main(int argc, char **argv)
                     per_cpu_sum+=(int)*((long *)ud_data + i);
                 }
             }
-            printf("URI%d\t%d\t",itr+1,per_cpu_sum);
+            printf("attr%d \t %d \t",key_set[itr],per_cpu_sum);
         }
         printf("\r");    
         fflush(stdout);

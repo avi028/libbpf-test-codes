@@ -19,6 +19,7 @@
 
 // #def not available in vmlinux.h
 #define ETH_P_IP    0x0800
+#define ETH_HEADER_SIZE 14
 
 // for easy understanding 
 #define htons bpf_htons
@@ -35,12 +36,27 @@
 #define PUT_REQUEST 4
 #define DELETE_REQUEST 5
 
-/*## Globals ##*/
-pid_t my_pid = 0;
-            
+// Auto generated DEF's
+#define SKIP_POST_HEADER 159
+#define SKIP_PUT_HEADER 158
+#define SKIP_HTTP_HEADER 159
+#define SKIP_GET_HEADER 158
+#define SKIP_DELETE_HEADER 161
+#define TOTAL_ATTRIBUTES 26
+#define ATTR1_LEN 40
+
+// /*## Globals ##*/
+// pid_t my_pid = 0;
+
 /*## MAPS ##*/
 struct {
+
+    #ifdef MULTI_CORE
     __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    #else
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    #endif
+
     __uint(max_entries, MAX_ENTRIES);
     __type(value, ud_t);
     __type(key, u32);
@@ -52,6 +68,11 @@ struct p_data{
     char load[MIN_HTTP_HEADER];
 };
 
+struct c1 {
+    char c[8];
+};
+
+int attr[10] = {1,2,3,4,5,6,7,8,9,90};
 /*## FUNCTIONS ##*/
 
 static inline struct iphdr * is_ip(struct ethhdr *eth_hdr,void * data_end){
@@ -164,7 +185,7 @@ int handle_egress(struct __sk_buff *skb)
     void *data = (void *)(__u64)skb->data;
     struct ethhdr *eth = data;
 
-    //if IP    
+    //if IP
     struct iphdr * ip = is_ip(eth,data_end);
     if(!ip){
         if(DEBUG_LEVEL_2) bpf_printk("HIT IP FILTER");
@@ -173,7 +194,7 @@ int handle_egress(struct __sk_buff *skb)
     int eth_hdr_len = sizeof(struct ethhdr);
         
     int ip_hdr_len      =   (ip->ihl<<2);
-    __u16 total_pkt_len =   ntohs(ip->tot_len);
+    __u16 total_pkt_len =   ntohs(ip->tot_len) + ETH_HEADER_SIZE;
 
     //if TCP/UDP
     if(ip->protocol !=IPPROTO_TCP && ip->protocol!=IPPROTO_UDP)
@@ -183,6 +204,7 @@ int handle_egress(struct __sk_buff *skb)
     int dest_port       =   0;     
     int tl_hdr_len      =   0;        
 
+    //if TCP
     if(ip->protocol == IPPROTO_TCP){
 
         struct tcphdr * tcp = is_tcp(ip,data_end);
@@ -194,6 +216,7 @@ int handle_egress(struct __sk_buff *skb)
         dest_port   =   ntohs(tcp->dest);  
         tl_hdr_len  =   (tcp->doff<<2);    
     }
+
     // if UDP
     else{
 
@@ -222,7 +245,7 @@ int handle_egress(struct __sk_buff *skb)
     }
     
     int payload_offset = eth_hdr_len+ ip_hdr_len + tl_hdr_len;
-    
+
     int status = bpf_skb_pull_data(skb,total_pkt_len);
     
     if(status==-1) {
@@ -244,37 +267,96 @@ int handle_egress(struct __sk_buff *skb)
 
     if(http_flag==POST_REQUEST){
         if(DEBUG_LEVEL_1) bpf_printk("POST REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=5;
+        payload_offset+=SKIP_POST_HEADER;
     }
 
     if(http_flag==PUT_REQUEST){
         if(DEBUG_LEVEL_1) bpf_printk("PUT REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=4;
+        payload_offset+=SKIP_PUT_HEADER;
     }
 
     if(http_flag==DELETE_REQUEST){
         if(DEBUG_LEVEL_1) bpf_printk("DELETE REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=7;
+        payload_offset+=SKIP_DELETE_HEADER;
     }
 
     if(http_flag==GET_REQUEST){
         if(DEBUG_LEVEL_1) bpf_printk("GET REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=4;
+        payload_offset+=SKIP_GET_HEADER;
     }
 
     if(http_flag==HTTP_RESPONSE){
         if(DEBUG_LEVEL_1) bpf_printk("HTTP RESPONSE AT PORT\t%d",dest_port);
-        payload_offset+=5;
+        payload_offset+=SKIP_HTTP_HEADER;
     }
 
-    int attr_flag=0;
+    int attr_flag=-1;
 
-    // wrie code for attribute check     
 
+    // wrie code for attribute check
+
+    struct c1 * c_ptr=NULL;
+
+    if(((void *) data + payload_offset+ (sizeof(*c_ptr))> data_end)){
+        if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH ");
+        goto EXIT;
+    }
+    
+    c_ptr = (struct c1 *) ((void*)data + payload_offset);
+
+    if(c_ptr->c[0] != '{'){
+        if(DEBUG_LEVEL_1) bpf_printk("ERROR IN {");
+        goto EXIT;
+    }
+
+    /*
+    "abcdefghijklmnopqrstuvwxyz":"o4i5g430g"
+    "a":"3834",
+    */
+
+    int itr=0;
+    int m=0;
+    
+    for(int i=payload_offset ,j=0 ; j<900;j++,i++){
+        
+        if(((void *) data + i+ (sizeof(struct c1))<= data_end)){
+
+            c_ptr = (struct c1 *) ((void*)data + i);
+            
+            // for(m=0;m<8;m++){
+            //     if(attr[m]!=(int)(c_ptr->c[m]))
+            //         break;
+            // }   
+            // if(m==8){
+            //     attr_flag=1;
+            //     goto MAP_UPDATE;                
+            // }         
+
+            if(c_ptr->c[0]=='a' && 
+                c_ptr->c[1]=='"' && 
+                c_ptr->c[2]==':' && 
+                c_ptr->c[3]=='"' && 
+                c_ptr->c[4]=='4' && 
+                c_ptr->c[5]=='9' && 
+                c_ptr->c[6]=='2' && 
+                c_ptr->c[7]=='"'){
+                attr_flag=1;
+                goto MAP_UPDATE;
+            }
+        }        
+        attr_flag=-1;
+        itr=i;
+    }
+
+    if(DEBUG_LEVEL_1) bpf_printk("INFO : No Match Found till %d",itr);    
 
 MAP_UPDATE:
 
-    u32 key = attr_flag*10+http_flag;
+    if(attr_flag<0)
+        goto EXIT;
+
+    u32 key = attr_flag*http_flag;
+
     ud_t * ud = (ud_t *)bpf_map_lookup_elem(&user_map,&key);
 
     if(ud==NULL){

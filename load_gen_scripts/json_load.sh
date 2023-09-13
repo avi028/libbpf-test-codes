@@ -1,6 +1,6 @@
 #!/bin/bash
 
-JSON_LOAD=@../testDataGeneration/set1.json
+JSON_LOAD=@../testDataGeneration/set4.json
 HEADERS='Content-Type: application/json'
 
 curl -v -H  "$HEADERS" \

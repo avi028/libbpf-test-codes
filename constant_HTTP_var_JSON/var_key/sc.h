@@ -9,6 +9,9 @@
 #define DEBUG_LEVEL_2 0
 #define DEBUG_LEVEL_1 1
 
+// Uncomment it for multicore 
+// #define MULTI_CORE
+
 // defines not found in vmlinux.h
 #define BPF_ANY 0
 
