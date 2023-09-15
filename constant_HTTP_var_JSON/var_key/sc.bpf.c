@@ -67,12 +67,22 @@ struct {
 struct p_data{
     char load[MIN_HTTP_HEADER];
 };
-
+#define M 18
 struct c1 {
-    char c[8];
+    char c[1];
 };
 
-int attr[10] = {1,2,3,4,5,6,7,8,9,90};
+struct c8 {
+    char c[M];
+};
+
+struct u64_1 {
+    __u64 l[1];
+};
+
+__u8 s[M] = {'"','a','b','"',':','"','o','4','i','5','f','4','3','2','1','0','"',','};
+__u8 s1[10] = {'"','a','b','"',':','"','o','4','i','"'};
+
 /*## FUNCTIONS ##*/
 
 static inline struct iphdr * is_ip(struct ethhdr *eth_hdr,void * data_end){
@@ -295,16 +305,16 @@ int handle_egress(struct __sk_buff *skb)
 
     // wrie code for attribute check
 
-    struct c1 * c_ptr=NULL;
+    struct c1 * c1_ptr=NULL;
 
-    if(((void *) data + payload_offset+ (sizeof(*c_ptr))> data_end)){
+    if(((void *) data + payload_offset+ (sizeof(struct c1))> data_end)){
         if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH ");
         goto EXIT;
     }
     
-    c_ptr = (struct c1 *) ((void*)data + payload_offset);
+    c1_ptr = (struct c1 *) ((void*)data + payload_offset);
 
-    if(c_ptr->c[0] != '{'){
+    if(c1_ptr->c[0] != '{'){
         if(DEBUG_LEVEL_1) bpf_printk("ERROR IN {");
         goto EXIT;
     }
@@ -314,48 +324,140 @@ int handle_egress(struct __sk_buff *skb)
     "a":"3834",
     */
 
-    int itr=0;
-    int m=0;
-    
-    for(int i=payload_offset ,j=0 ; j<900;j++,i++){
-        
-        if(((void *) data + i+ (sizeof(struct c1))<= data_end)){
+    int itr=0,itr_n=0;
+    struct c8 * c8_ptr=NULL;
+     int m=0;
+    int i=payload_offset;
+    // for if for    
 
-            c_ptr = (struct c1 *) ((void*)data + i);
-            
-            // for(m=0;m<8;m++){
-            //     if(attr[m]!=(int)(c_ptr->c[m]))
-            //         break;
-            // }   
-            // if(m==8){
-            //     attr_flag=1;
-            //     goto MAP_UPDATE;                
-            // }         
+    // max read upto 1543 byte in packet and bytes upto 144 (18*8)
 
-            if(c_ptr->c[0]=='a' && 
-                c_ptr->c[1]=='"' && 
-                c_ptr->c[2]==':' && 
-                c_ptr->c[3]=='"' && 
-                c_ptr->c[4]=='4' && 
-                c_ptr->c[5]=='9' && 
-                c_ptr->c[6]=='2' && 
-                c_ptr->c[7]=='"'){
+    // #pragma clang loop unroll(enable)
+    for( int j=0 ; j<1543;j++,i++){            
+        if(((void *) data + i+ (sizeof(struct c8))<= data_end)){
+            c8_ptr = (struct c8 *) ((void*)data + i);
+            // #pragma clang loop unroll(full)
+            for(m=0;m<M;m++)
+                if(c8_ptr->c[m]!=s[m])break;
+
+            if(m==M){
                 attr_flag=1;
-                goto MAP_UPDATE;
+                goto MAP_UPDATE;                
             }
-        }        
-        attr_flag=-1;
-        itr=i;
+            if(m==10){
+                attr_flag=1;
+                goto MAP_UPDATE;                
+            }
+            if(m==11){
+                attr_flag=1;
+                goto MAP_UPDATE;                
+            }
+            if(m==12){
+                attr_flag=1;
+                goto MAP_UPDATE;                
+            }
+            if(m==13){
+                attr_flag=1;
+                goto MAP_UPDATE;                
+            }
+            if(m==14){
+                attr_flag=1;
+                goto MAP_UPDATE;                
+            }
+        }
+       itr=i;
     }
+
+    // for if if
+    // bpf_printk("%d",sizeof(__u32));
+    // bpf_printk("%d",sizeof(__u64));
+
+    // #pragma clang loop unroll(full)
+    // for(int i=payload_offset ,j=0 ; j<800;j++,i++){
+        
+    //     if(((void *) data + i+ (sizeof(struct c8))<= data_end)){
+    //         c8_ptr = (struct c8 *) ((void*)data + i);
+
+    //         if( c8_ptr->c[0]=='"' && 
+    //             c8_ptr->c[1]=='a' && 
+    //             c8_ptr->c[2]=='"' && 
+    //             c8_ptr->c[3]==':' && 
+    //             c8_ptr->c[4]=='"' && 
+    //             c8_ptr->c[5]=='4' && 
+    //             c8_ptr->c[6]=='9' && 
+    //             c8_ptr->c[7]=='2' && 
+    //             c8_ptr->c[8]=='"'){
+    //             attr_flag=1;
+    //             goto MAP_UPDATE;
+    //         }
+    //     }        
+    //     itr=i;
+    // }
+
+/*Ashwin IDea *************************/
+    // int state =0;
+    // int i=payload_offset ;
+    // if ((void*)(data + i) > data_end)
+    // {
+    //     goto EXIT;
+    // }
+    
+    // for(int j=0 ; j<100;j++){
+        
+    //     if((void *) (data + i + j) < data_end){
+    //         if (*(char*)(data + i + j) == 'a' && state == 0)
+    //             state = 1;
+    //         if (*(char*)(data + i + j) == '"' && state == 1)
+    //             state = 2;
+    //         if (*(char*)(data + i + j) == ':' && state == 2)
+    //             state = 3;
+    //         if (*(char*)(data + i + j) == '"' && state == 3)
+    //             state = 4;
+    //         if (*(char*)(data + i + j) == '4' && state == 4)
+    //             state = 5;
+    //         if (*(char*)(data + i + j) == '9' && state == 5)
+    //             state = 6;
+    //         if (*(char*)(data + i + j) == '2' && state == 6)
+    //             state = 7;
+    //         if (*(char*)(data + i + j) == '"' && state == 7)
+    //             break;
+
+    //     }        
+    //     // itr=i;
+    // }
+
+/*Ashwin Idea Ends********************** */
+
+    // for if
+    // if (((void *) data + payload_offset + (sizeof(struct c1)) > data_end))    
+    //     goto EXIT;
+
+    // for(int i=payload_offset ,j=0 ;(((void *) data + i+ (sizeof(struct c1))<= data_end)) && j<900 ;j++,i++){
+        
+    //     c_ptr = (struct c1 *) ((void*)data + i);
+        
+    //     if( c_ptr->c[0]=='a' && 
+    //         c_ptr->c[1]=='"' && 
+    //         c_ptr->c[2]==':' && 
+    //         c_ptr->c[3]=='"' && 
+    //         c_ptr->c[4]=='4' && 
+    //         c_ptr->c[5]=='9' && 
+    //         c_ptr->c[6]=='2' && 
+    //         c_ptr->c[7]=='"'){
+    //         attr_flag=1;
+    //         goto MAP_UPDATE;
+    //     }
+    //     itr=i;
+    // }
 
     if(DEBUG_LEVEL_1) bpf_printk("INFO : No Match Found till %d",itr);    
 
 MAP_UPDATE:
-
+    
     if(attr_flag<0)
         goto EXIT;
 
-    u32 key = attr_flag*http_flag;
+    u32 key = http_flag * attr_flag;
 
     ud_t * ud = (ud_t *)bpf_map_lookup_elem(&user_map,&key);
 
