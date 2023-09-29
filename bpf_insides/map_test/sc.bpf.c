@@ -44,21 +44,33 @@
 ///#define __type(name, val) typeof(val) *name
 
 /*## MAPS ##*/
+#if MAP_TYPE == HASHMAP
+
 struct {
-    #if CORES == MULTI_CORE
+    #if CORES == MULTI_CORE 
+    __uint(type, BPF_MAP_TYPE_PERCPU_HASH);
+    #else // CORES=SINGLE_CORE
+    __uint(type, BPF_MAP_TYPE_HASH);
+    #endif
+    __uint(max_entries, MAX_ENTRIES);
+    __type(value, map_value_t);    
+    __type(key, map_key_t);
+} storage_map SEC(".maps");
+
+#else
+
+struct {
+    #if CORES == MULTI_CORE 
     __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
     #else // CORES=SINGLE_CORE
     __uint(type, BPF_MAP_TYPE_ARRAY);
     #endif
     __uint(max_entries, MAX_ENTRIES);
     __type(value, map_value_t);    
-    #if MAP_TYPE == HASHMAP
-    __type(key, map_key_t);
-    #else //MAP_TYPE=ARRAY
     __type(key,u32);
-    #endif
 } storage_map SEC(".maps");
 
+#endif
 
 struct {
     #if CORES == MULTI_CORE
@@ -295,9 +307,7 @@ int handle_egress(struct __sk_buff *skb)
     
     #else // MAP_TYPE == ARRAY     
     u32 map_key = uint8_t2u32(ptr->map_key.key,KEY_SIZE);
-    if(DEBUG_LEVEL_1) bpf_printk("INFO: Map Upadte for map_key %d",map_key);
-    bpf_map_update_elem(&storage_map,&map_key,&(ptr->map_value),BPF_ANY);
-    
+    bpf_map_update_elem(&storage_map,&map_key,&(ptr->map_value),BPF_ANY);    
     #endif
     
     

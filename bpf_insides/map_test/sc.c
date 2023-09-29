@@ -83,16 +83,23 @@ int main(int argc, char **argv)
     int status;
     printf("STATUS :\n");
     while(exiting!=true){    
-        uint32_t key = atoll((char *)map_key.key);
 
-        status = bpf_map_lookup_elem(map_fd,&key,ud_data);
         map_value_t * map_value  = (map_value_t *) ud_data;
 
+        #if MAP_TYPE==ARRAY
+        uint32_t key = atoll((char *)map_key.key);        
+        status = bpf_map_lookup_elem(map_fd,&key,ud_data);
         if(status!=-1){
             printf("key : %d , value : %s",key,(char *)map_value->value);
-            printf("\r");    
-            fflush(stdout);
         }
+        #else //MAP_TYPE==HASHMAP
+        status = bpf_map_lookup_elem(map_fd,&map_key,ud_data);
+        if(status!=-1){
+            printf("key : %s , value : %s",(char*)map_key.key,(char *)map_value->value);
+        }
+        #endif        
+        printf("\r");    
+        fflush(stdout);
         sleep(1);
     }
     printf("\n");
