@@ -72,16 +72,16 @@ struct {
 
 #endif
 
-struct {
-    #if CORES == MULTI_CORE
-    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
-    #else // CORES=SINGLE_CORE
-    __uint(type, BPF_MAP_TYPE_ARRAY);
-    #endif
-    __uint(max_entries, MAX_ENTRIES);
-    __type(value, ud_t);
-    __type(key, u32);
-} user_map SEC(".maps");
+// struct {
+//     #if CORES == MULTI_CORE
+//     __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+//     #else // CORES=SINGLE_CORE
+//     __uint(type, BPF_MAP_TYPE_ARRAY);
+//     #endif
+//     __uint(max_entries, MAX_ENTRIES);
+//     __type(value, map_value_t);
+//     __type(key, u32);
+// } user_map SEC(".maps");
 
 /*## STRUCTS ##*/
 
