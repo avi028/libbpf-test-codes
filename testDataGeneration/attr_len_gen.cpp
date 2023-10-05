@@ -4,7 +4,7 @@
 #include <cstring>
 using namespace std;
 
-#define DEBUG_ 1
+#define DEBUG_ 1 1
 
 uint64_t str_to_long(char array[] ){
 
@@ -96,7 +96,7 @@ void getLLforList(vector<string> list){
 
 
 int parseJson(){
-	
+
 }
 
 int main(){
