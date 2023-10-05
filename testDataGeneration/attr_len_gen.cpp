@@ -1,11 +1,14 @@
 #include<iostream>
 #include <vector>
 #include <string>
-
+#include <cstring>
 using namespace std;
 
+#define DEBUG_ 1
+
 uint64_t str_to_long(char array[] ){
-	for(int i=0;i<8;i++)cout<<array[i];
+
+	// for(int i=0;i<8;i++)cout<<array[i];
 	uint64_t value = 
 	  static_cast<uint64_t>(array[0]) |
 	  static_cast<uint64_t>(array[1]) << 8 |
@@ -15,28 +18,18 @@ uint64_t str_to_long(char array[] ){
 	  static_cast<uint64_t>(array[5]) << 40 |
 	  static_cast<uint64_t>(array[6]) << 48 |
 	  static_cast<uint64_t>(array[7]) << 56;
-	  cout<<" -> "<<value<<endl;
 	  return value;
 }
 
+void printV(vector<uint64_t> v){
+	cout<<"{ ";
+	for(int i=0;i<v.size()-1;i++) cout<<v[i]<<',';
+	cout<<v[v.size()-1];
+	cout<<"}\n";
+}
 
-char str [] = "dkniendeifnewifiabcsedfq\"";
-
-int main(){
-
-	cout<<str<<endl;
-	int size = sizeof(str)-1;
-	cout<<"size "<<size<<endl;
-	int u64_cnt = (size/8) + (size%8==0?0:1);
-	int mask = size%8;
-	int mask_loc = (mask==0?-1:u64_cnt-1);
-
-	cout<<"u64 required "<<u64_cnt<<endl;
-
-	cout<<"mask "<<mask<<" mask loc "<<mask_loc<<endl;
-	uint64_t m = 0xFFFFFFFFFFFFFFFF;
-	uint64_t out_mask[u64_cnt	]; 
-	uint64_t out[u64_cnt];
+vector<vector<uint64_t>> genLong(string s){	
+	
 	uint64_t mask_set[]={0xFFFFFFFFFFFFFFFF, // all match
 						 0x00000000000000FF, // 1 byte match
 						 0x000000000000FFFF, // 2 byte match
@@ -47,6 +40,21 @@ int main(){
 						 0x00FFFFFFFFFFFFFF, // 7 byte match
 	};
 
+	char * str  = (char *)s.c_str();
+	int size = strlen(str);
+	int u64_cnt = (size/8) + (size%8==0?0:1);
+	int mask = size%8;
+	int mask_loc = (mask==0?-1:u64_cnt-1);
+
+	if(DEBUG_){
+		cout<<"string:"<<s<<"\tsize:"<<size<<endl;
+		cout<<"u64 required:"<<u64_cnt<<endl;
+		cout<<"mask:"<<mask<<"\tmask loc:"<<mask_loc<<endl;
+	}
+
+	vector<uint64_t> out(u64_cnt,0); 
+	vector<uint64_t> out_mask(u64_cnt,0); 
+
 	for(int i =0 ;i<u64_cnt;i++){
 		char* cptr = &str[i*8];
 		out[i] = str_to_long(cptr);
@@ -54,17 +62,55 @@ int main(){
 	}
 	if(mask_loc!=-1)
 		out_mask[mask_loc] = mask_set[mask];
-	cout<<"{ ";
-	for(uint64_t o : out) cout<<o<<',';
-	cout<<"}\n";
 
-	cout<<"{ ";
-	for(uint64_t o : out_mask) cout<<o<<',';
-	cout<<"}\n";
+	if(DEBUG_){
+		cout<<"attr's"<<endl;
+		printV(out);
+	}
+
+	if(DEBUG_){
+		cout<<"msk's"<<endl;
+		printV(out_mask);
+	}	
+	// for(int i=0;i<u64_cnt;i++)
+	// 	cout<<(out_mask[i]&out[i])<<',';
+	// cout<<endl;
+	return {out,out_mask};	
+}
+
+void getLLforList(vector<string> list){
+	vector<uint64_t> lvalues;
+	vector<uint64_t> masks;
+
+	for(string s : list){
+		vector<vector<uint64_t>> slong = genLong(s);
+		lvalues.push_back(slong[0][0]);
+		masks.push_back(slong[1][0]);
+	}
+	cout<<"lvalues's"<<endl;
+	printV(lvalues);
+
+	cout<<"mask's"<<endl;
+	printV(masks);
+}
+
+
+int parseJson(){
 	
-	for(int i=0;i<u64_cnt;i++)
-		cout<<(out_mask[i]&out[i])<<',';
-	cout<<endl;
+}
 
+int main(){
+	string s = "\"name\"";
+	vector<string> attrlist= {"\"nam",
+						 "\"cou",
+						 "\"ins",
+						 "\"id\"",
+						 "\"cou",
+						 "\"pro",
+						 "\"cit",
+						 "\"sta",
+						};
+
+	getLLforList(attrlist);
 	return 0;	
 }
