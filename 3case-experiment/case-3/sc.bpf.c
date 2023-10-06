@@ -268,8 +268,8 @@ int handle_egress(struct __sk_buff *skb)
         goto EXIT;
     }
 
-    // data = (void*)(__u64)skb->data; 
-    // data_end = (void*)(__u64)skb->data_end;
+    data = (void*)(__u64)skb->data; 
+    data_end = (void*)(__u64)skb->data_end;
 
     // if HTTP Request/Response
     // int http_flag = is_http(skb,payload_offset);
@@ -330,7 +330,7 @@ int handle_egress(struct __sk_buff *skb)
 
     // max read upto 1543 byte in packet and bytes upto 200
 
-    // #pragma clang loop unroll(enable)
+    
     for(int j = 0 ; j < ATTR_NUM; j++) {
         if(((void *) data + i + (sizeof(struct c8)) <= data_end)){
             c8_ptr = (struct c8 *) ((void*) data + i);
@@ -343,7 +343,7 @@ int handle_egress(struct __sk_buff *skb)
             for(m = 0; m < ATTR_NUM; m++) {
                 if(c8_ptr->attr & mask[m] == u64_attr_list[m]) {
                     i += skip_bytes[m];
-                    continue;
+                    break;
                 }
             }
                 
@@ -359,7 +359,7 @@ int handle_egress(struct __sk_buff *skb)
     if(DEBUG_LEVEL_1) 
         bpf_printk("INFO : No Match Found till %d",itr);    
     goto EXIT;
-    
+
 MAP_UPDATE:
     
     if(attr_flag<0)

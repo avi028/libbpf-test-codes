@@ -266,8 +266,8 @@ int handle_egress(struct __sk_buff *skb)
         goto EXIT;
     }
 
-    // data = (void*)(__u64)skb->data; 
-    // data_end = (void*)(__u64)skb->data_end;
+    data = (void*)(__u64)skb->data; 
+    data_end = (void*)(__u64)skb->data_end;
 
     // // if HTTP Request/Response
     // int http_flag = is_http(skb,payload_offset);
@@ -331,8 +331,17 @@ int handle_egress(struct __sk_buff *skb)
     // WHY 1543? Already offset pointing at some where inside the packet
     for( ; data + i < data_end; i++) {            
         // if(((void *)data + i + (sizeof(struct c8)) <= data_end)) {
+        if(((void *)data + i + (sizeof(struct c8)) > data_end))
+        {
+            goto EXIT;
+        }
+
         c8_ptr = (struct c8 *) ((void*)data + i);
-            
+        if (c8_ptr & attr_mask == u64_needed_attr) {
+            goto MAP_UPDATE;
+        }
+        
+        
             // Should only be comparing with one attribute in this case??
             // for(m = 0; m < M; m++)
             //     if(c8_ptr->c[m]!=u64_l1[m])
@@ -342,12 +351,8 @@ int handle_egress(struct __sk_buff *skb)
             //     goto MAP_UPDATE;                
             // }
 
-        if (c8_ptr & attr_mask == u64_needed_attr) {
-            goto MAP_UPDATE;
-        }
-        else {
-            i++;
-        }
+        
+        
 
         // }
        itr=i;
@@ -355,7 +360,7 @@ int handle_egress(struct __sk_buff *skb)
 
     if(DEBUG_LEVEL_1) bpf_printk("INFO : No Match Found till %d",itr);    
     goto EXIT;
-    
+
 MAP_UPDATE:
     
     if(attr_flag<0)

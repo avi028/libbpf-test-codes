@@ -284,8 +284,8 @@ int handle_egress(struct __sk_buff *skb)
         goto EXIT;
     }
 
-    // data = (void*)(__u64)skb->data; 
-    // data_end = (void*)(__u64)skb->data_end;
+    data = (void*)(__u64)skb->data; 
+    data_end = (void*)(__u64)skb->data_end;
 
     // // if HTTP Request/Response
     // int http_flag = is_http(skb,payload_offset);
@@ -358,35 +358,35 @@ int handle_egress(struct __sk_buff *skb)
     }
 
     //case 2
-    if(((void *) data + payload_offset+ (sizeof(l5_t))> data_end)){
-            if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH 1");
-            goto EXIT;
-        }
+    // if(((void *) data + payload_offset+ (sizeof(l5_t))> data_end)){
+    //         if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH 1");
+    //         goto EXIT;
+    //     }
     
-    l5_t * l5   =    (l5_t *) ((void*)data + payload_offset);
-    i=0;
-    for(;i<l5Count;i++){
-        if( (__u64)(l5->l[i] & l5mask[i]) != l5match[i] ) break;
-    }
-    if(i==l5Count){
-        attr_flag=3;
-        goto MAP_UPDATE;
-    }
+    // l5_t * l5   =    (l5_t *) ((void*)data + payload_offset);
+    // i=0;
+    // for(;i<l5Count;i++){
+    //     if( (__u64)(l5->l[i] & l5mask[i]) != l5match[i] ) break;
+    // }
+    // if(i==l5Count){
+    //     attr_flag=3;
+    //     goto MAP_UPDATE;
+    // }
 
-    //case 3
-    if(((void *) data + payload_offset+ (sizeof(l4_t))> data_end)){
-            if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH 1");
-            goto EXIT;
-        }
+    // //case 3
+    // if(((void *) data + payload_offset+ (sizeof(l4_t))> data_end)){
+    //         if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH 1");
+    //         goto EXIT;
+    //     }
     
-    l4_t * l4   =    (l4_t *) ((void*)data + payload_offset);
-    i=0;
-    for(;i<l4Count;i++){
-        if( (__u64)(l4->l[i] & l4mask[i]) != l4match[i] ) break;
-    }
-    if(i==l4Count){
-        attr_flag=2;
-    }
+    // l4_t * l4   =    (l4_t *) ((void*)data + payload_offset);
+    // i=0;
+    // for(;i<l4Count;i++){
+    //     if( (__u64)(l4->l[i] & l4mask[i]) != l4match[i] ) break;
+    // }
+    // if(i==l4Count){
+    //     attr_flag=2;
+    // }
 
     // if(DEBUG_LEVEL_1) bpf_printk("INFO : No Match Found till %d",itr);    
 
