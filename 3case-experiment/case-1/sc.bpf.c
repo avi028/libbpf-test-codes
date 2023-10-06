@@ -50,13 +50,11 @@
 
 /*## MAPS ##*/
 struct {
-
-    #ifdef MULTI_CORE
+    #if CORES == MULTI_CORE
     __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
-    #else
+    #else // CORES=SINGLE_CORE
     __uint(type, BPF_MAP_TYPE_ARRAY);
     #endif
-
     __uint(max_entries, MAX_ENTRIES);
     __type(value, ud_t);
     __type(key, u32);
@@ -72,36 +70,12 @@ struct c1 {
     char c[1];
 };
 
-struct l3 {
-    __u64 l[3];
-};
-
-struct l4 {
-    __u64 l[4];
-};
-
 #define l3Count 3
 typedef struct long2array {
     uint64_t l[l3Count];
 } l3_t;
 uint64_t l3match [l3Count]  = { 8316851549228984164,7022066690769053537,34};
 uint64_t l3mask  [l3Count]  = { 18446744073709551615,18446744073709551615,255};
-
-
-#define l5Count 5
-typedef struct long5array {
-    uint64_t l[l5Count];
-} l5_t;
-uint64_t l5match [l5Count]  = { 8533880816892404083,8026647562807768933,7018408585686510702,7811051985644054126,34};
-uint64_t l5mask  [l5Count]  = { 18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,255};
-
-
-#define l4Count 4
-typedef struct long4array {
-    uint64_t l[l4Count];
-} l4_t;
-uint64_t l4match [l4Count]  = { 7306085877341383524,7594873783130678889,8171328960800711265,34};
-uint64_t l4mask  [l4Count]  = { 18446744073709551615,18446744073709551615,18446744073709551615,255};
 
 
 /*## FUNCTIONS ##*/
@@ -287,8 +261,9 @@ int handle_egress(struct __sk_buff *skb)
     data = (void*)(__u64)skb->data; 
     data_end = (void*)(__u64)skb->data_end;
 
-    // // if HTTP Request/Response
-    // int http_flag = is_http(skb,payload_offset);
+    int http_flag = 1;
+    // if HTTP Request/Response
+    // http_flag = is_http(skb,payload_offset);
 
     // if(http_flag <= 0 ){
     //     if(DEBUG_LEVEL_1) bpf_printk("HIT HTTP FILTER : %d",http_flag);
@@ -319,9 +294,7 @@ int handle_egress(struct __sk_buff *skb)
     //     if(DEBUG_LEVEL_1) bpf_printk("HTTP RESPONSE AT PORT\t%d",dest_port);
     //     payload_offset+=SKIP_HTTP_HEADER;
     // }
-
-    int attr_flag=-1;
-
+    
     // wrie code for attribute check
 
     struct c1 * c1_ptr=NULL;
@@ -340,12 +313,14 @@ int handle_egress(struct __sk_buff *skb)
 
     payload_offset+=INITIAL_SKIP;
     int i=0;
+    uint64_t key=0;
+    ud_t * ud = NULL;
     
     // case 1
     if(((void *) data + payload_offset+ (sizeof(l3_t))> data_end)){
-            if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH 1");
-            goto EXIT;
-        }
+        if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH 1");
+        goto EXIT;
+    }
     
     l3_t * l   =    (l3_t *) ((void*)data + payload_offset);
     i=0;
@@ -353,51 +328,16 @@ int handle_egress(struct __sk_buff *skb)
         if( (__u64)(l->l[i] & l3mask[i]) != l3match[i] ) break;
     }
     if(i==l3Count){
-        attr_flag=1;
+        key = http_flag * 1;
         goto MAP_UPDATE;
     }
 
-    //case 2
-    // if(((void *) data + payload_offset+ (sizeof(l5_t))> data_end)){
-    //         if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH 1");
-    //         goto EXIT;
-    //     }
-    
-    // l5_t * l5   =    (l5_t *) ((void*)data + payload_offset);
-    // i=0;
-    // for(;i<l5Count;i++){
-    //     if( (__u64)(l5->l[i] & l5mask[i]) != l5match[i] ) break;
-    // }
-    // if(i==l5Count){
-    //     attr_flag=3;
-    //     goto MAP_UPDATE;
-    // }
-
-    // //case 3
-    // if(((void *) data + payload_offset+ (sizeof(l4_t))> data_end)){
-    //         if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH 1");
-    //         goto EXIT;
-    //     }
-    
-    // l4_t * l4   =    (l4_t *) ((void*)data + payload_offset);
-    // i=0;
-    // for(;i<l4Count;i++){
-    //     if( (__u64)(l4->l[i] & l4mask[i]) != l4match[i] ) break;
-    // }
-    // if(i==l4Count){
-    //     attr_flag=2;
-    // }
-
-    // if(DEBUG_LEVEL_1) bpf_printk("INFO : No Match Found till %d",itr);    
+    if(DEBUG_LEVEL_1) bpf_printk("INFO : No Match Found till %d",i);    
+    goto EXIT;
 
 MAP_UPDATE:
-    
-    if(attr_flag<0)
-        goto EXIT;
 
-    u32 key = http_flag * attr_flag;
-
-    ud_t * ud = (ud_t *)bpf_map_lookup_elem(&user_map,&key);
+    ud = (ud_t *)bpf_map_lookup_elem(&user_map,&key);
 
     if(ud==NULL){
         if(DEBUG_LEVEL_1) bpf_printk("ERROR: Map Upadet failed for key %d",key);

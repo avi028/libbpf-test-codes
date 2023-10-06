@@ -1,9 +1,16 @@
 #ifndef __SC_H__
 #define __SC_H__
 
+// expriment realted constants
+#define SINGLE_CORE 1
+#define MULTI_CORE 2
+
 // config
 #define PORT 80
 #define INTERFACE_NAME "lo"
+
+//experiment realted config
+#define CORES SINGLE_CORE
 
 // debug levels
 #define DEBUG_LEVEL_2 0
