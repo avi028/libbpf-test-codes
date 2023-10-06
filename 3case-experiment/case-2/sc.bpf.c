@@ -67,14 +67,15 @@ struct {
 struct p_data{
     char load[MIN_HTTP_HEADER];
 };
-#define M 25
+
+// #define M 25
 
 struct c1 {
     char c[1];
 };
 
 struct c8 {
-    __u64 c[M];
+    __u64 attr;
 };
 
 // __u64 u64_l1[M] = { 1650532896,1785292903,1987145839,841103906,1685283176,862466608,1684234849,1818978921,1953722993,857881122,1634952755,2033477221,1629629474,1768449894,1903193966,862479906,1935962994,2257512};
@@ -265,41 +266,41 @@ int handle_egress(struct __sk_buff *skb)
         goto EXIT;
     }
 
-    data = (void*)(__u64)skb->data; 
-    data_end = (void*)(__u64)skb->data_end;
+    // data = (void*)(__u64)skb->data; 
+    // data_end = (void*)(__u64)skb->data_end;
 
-    // if HTTP Request/Response
-    int http_flag = is_http(skb,payload_offset);
+    // // if HTTP Request/Response
+    // int http_flag = is_http(skb,payload_offset);
 
-    if(http_flag <= 0 ){
-        if(DEBUG_LEVEL_1) bpf_printk("HIT HTTP FILTER : %d",http_flag);
-        goto EXIT;
-    }
+    // if(http_flag <= 0 ){
+    //     if(DEBUG_LEVEL_1) bpf_printk("HIT HTTP FILTER : %d",http_flag);
+    //     goto EXIT;
+    // }
 
-    if(http_flag==POST_REQUEST){
-        if(DEBUG_LEVEL_1) bpf_printk("POST REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_POST_HEADER;
-    }
+    // if(http_flag==POST_REQUEST){
+    //     if(DEBUG_LEVEL_1) bpf_printk("POST REQUEST AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_POST_HEADER;
+    // }
 
-    if(http_flag==PUT_REQUEST){
-        if(DEBUG_LEVEL_1) bpf_printk("PUT REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_PUT_HEADER;
-    }
+    // if(http_flag==PUT_REQUEST){
+    //     if(DEBUG_LEVEL_1) bpf_printk("PUT REQUEST AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_PUT_HEADER;
+    // }
 
-    if(http_flag==DELETE_REQUEST){
-        if(DEBUG_LEVEL_1) bpf_printk("DELETE REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_DELETE_HEADER;
-    }
+    // if(http_flag==DELETE_REQUEST){
+    //     if(DEBUG_LEVEL_1) bpf_printk("DELETE REQUEST AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_DELETE_HEADER;
+    // }
 
-    if(http_flag==GET_REQUEST){
-        if(DEBUG_LEVEL_1) bpf_printk("GET REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_GET_HEADER;
-    }
+    // if(http_flag==GET_REQUEST){
+    //     if(DEBUG_LEVEL_1) bpf_printk("GET REQUEST AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_GET_HEADER;
+    // }
 
-    if(http_flag==HTTP_RESPONSE){
-        if(DEBUG_LEVEL_1) bpf_printk("HTTP RESPONSE AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_HTTP_HEADER;
-    }
+    // if(http_flag==HTTP_RESPONSE){
+    //     if(DEBUG_LEVEL_1) bpf_printk("HTTP RESPONSE AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_HTTP_HEADER;
+    // }
 
     int attr_flag=-1;
 
@@ -327,23 +328,34 @@ int handle_egress(struct __sk_buff *skb)
 
     // max read upto 1543 byte in packet and bytes upto 200
 
-    // #pragma clang loop unroll(enable)
-    for( int j=0 ; j<1543;j++,i++){            
-        if(((void *) data + i+ (sizeof(struct c8))<= data_end)){
-            c8_ptr = (struct c8 *) ((void*)data + i);
-            // #pragma clang loop unroll(full)
-            for(m=0;m<M;m++)
-                if(c8_ptr->c[m]!=u64_l1[m])break;
-            if(m==M){
-                attr_flag=1;
-                goto MAP_UPDATE;                
-            }
+    // WHY 1543? Already offset pointing at some where inside the packet
+    for( ; data + i < data_end; i++) {            
+        // if(((void *)data + i + (sizeof(struct c8)) <= data_end)) {
+        c8_ptr = (struct c8 *) ((void*)data + i);
+            
+            // Should only be comparing with one attribute in this case??
+            // for(m = 0; m < M; m++)
+            //     if(c8_ptr->c[m]!=u64_l1[m])
+            //         break;
+            // if(m==M){
+            //     attr_flag=1;
+            //     goto MAP_UPDATE;                
+            // }
+
+        if (c8_ptr & attr_mask == u64_needed_attr) {
+            goto MAP_UPDATE;
         }
+        else {
+            i++;
+        }
+
+        // }
        itr=i;
     }
 
     if(DEBUG_LEVEL_1) bpf_printk("INFO : No Match Found till %d",itr);    
-
+    goto EXIT;
+    
 MAP_UPDATE:
     
     if(attr_flag<0)

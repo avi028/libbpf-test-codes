@@ -284,41 +284,41 @@ int handle_egress(struct __sk_buff *skb)
         goto EXIT;
     }
 
-    data = (void*)(__u64)skb->data; 
-    data_end = (void*)(__u64)skb->data_end;
+    // data = (void*)(__u64)skb->data; 
+    // data_end = (void*)(__u64)skb->data_end;
 
-    // if HTTP Request/Response
-    int http_flag = is_http(skb,payload_offset);
+    // // if HTTP Request/Response
+    // int http_flag = is_http(skb,payload_offset);
 
-    if(http_flag <= 0 ){
-        if(DEBUG_LEVEL_1) bpf_printk("HIT HTTP FILTER : %d",http_flag);
-        goto EXIT;
-    }
+    // if(http_flag <= 0 ){
+    //     if(DEBUG_LEVEL_1) bpf_printk("HIT HTTP FILTER : %d",http_flag);
+    //     goto EXIT;
+    // }
 
-    if(http_flag==POST_REQUEST){
-        if(DEBUG_LEVEL_1) bpf_printk("POST REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_POST_HEADER;
-    }
+    // if(http_flag==POST_REQUEST){
+    //     if(DEBUG_LEVEL_1) bpf_printk("POST REQUEST AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_POST_HEADER;
+    // }
 
-    if(http_flag==PUT_REQUEST){
-        if(DEBUG_LEVEL_1) bpf_printk("PUT REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_PUT_HEADER;
-    }
+    // if(http_flag==PUT_REQUEST){
+    //     if(DEBUG_LEVEL_1) bpf_printk("PUT REQUEST AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_PUT_HEADER;
+    // }
 
-    if(http_flag==DELETE_REQUEST){
-        if(DEBUG_LEVEL_1) bpf_printk("DELETE REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_DELETE_HEADER;
-    }
+    // if(http_flag==DELETE_REQUEST){
+    //     if(DEBUG_LEVEL_1) bpf_printk("DELETE REQUEST AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_DELETE_HEADER;
+    // }
 
-    if(http_flag==GET_REQUEST){
-        if(DEBUG_LEVEL_1) bpf_printk("GET REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_GET_HEADER;
-    }
+    // if(http_flag==GET_REQUEST){
+    //     if(DEBUG_LEVEL_1) bpf_printk("GET REQUEST AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_GET_HEADER;
+    // }
 
-    if(http_flag==HTTP_RESPONSE){
-        if(DEBUG_LEVEL_1) bpf_printk("HTTP RESPONSE AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_HTTP_HEADER;
-    }
+    // if(http_flag==HTTP_RESPONSE){
+    //     if(DEBUG_LEVEL_1) bpf_printk("HTTP RESPONSE AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_HTTP_HEADER;
+    // }
 
     int attr_flag=-1;
 
