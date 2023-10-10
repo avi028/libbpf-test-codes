@@ -26,6 +26,7 @@
 #define ntohs bpf_ntohs
 
 // user defined #def
+#define TIMESTAMP 8
 #define DEBUG_LEVEL_2 0
 #define DEBUG_LEVEL_1 0
 #define MIN_HTTP_HEADER 50
@@ -75,7 +76,7 @@ struct char100{
 };
 
 struct char500{
-    char c[200];
+    char c[1400];
 };
 
 struct http_response{
@@ -305,7 +306,7 @@ int handle_egress(struct __sk_buff *skb)
         goto EXIT;
     }
     
-    int payload_offset = eth_hdr_len+ ip_hdr_len + tl_hdr_len;
+    int payload_offset = eth_hdr_len+ ip_hdr_len + tl_hdr_len+TIMESTAMP; // 8bytes of timestamp
     
     // bpf_printk("struct Len : %d\t Tot len : %d",payload_offset,total_pkt_len);
 

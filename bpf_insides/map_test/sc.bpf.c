@@ -72,16 +72,16 @@ struct {
 
 #endif
 
-struct {
-    #if CORES == MULTI_CORE
-    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
-    #else // CORES=SINGLE_CORE
-    __uint(type, BPF_MAP_TYPE_ARRAY);
-    #endif
-    __uint(max_entries, MAX_ENTRIES);
-    __type(value, ud_t);
-    __type(key, u32);
-} user_map SEC(".maps");
+// struct {
+//     #if CORES == MULTI_CORE
+//     __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+//     #else // CORES=SINGLE_CORE
+//     __uint(type, BPF_MAP_TYPE_ARRAY);
+//     #endif
+//     __uint(max_entries, MAX_ENTRIES);
+//     __type(value, map_value_t);
+//     __type(key, u32);
+// } user_map SEC(".maps");
 
 /*## STRUCTS ##*/
 
@@ -288,6 +288,7 @@ int handle_egress(struct __sk_buff *skb)
     data_end = (void*)(__u64)skb->data_end;
 
     pkt_data * ptr = NULL;
+    
     if(((void*)data + payload_offset + sizeof(pkt_data))> data_end){
         if(DEBUG_LEVEL_1) bpf_printk("ERRORL : DATA SIZE FAILURE");
         goto EXIT;
@@ -301,7 +302,7 @@ int handle_egress(struct __sk_buff *skb)
     bpf_map_update_elem(&storage_map,map_key,&(ptr->map_value),BPF_ANY);
     
     #else // MAP_TYPE == ARRAY     
-    u32 map_key = uint8_t2u32(ptr->map_key.key,KEY_SIZE);
+    u32 map_key = bpf_get_prandom_u32()%MAX_ENTRIES;//uint8_t2u32(ptr->map_key.key,KEY_SIZE);
     bpf_map_update_elem(&storage_map,&map_key,&(ptr->map_value),BPF_ANY);    
     #endif
     
