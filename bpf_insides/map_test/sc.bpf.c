@@ -293,6 +293,7 @@ int handle_egress(struct __sk_buff *skb)
     data_end = (void*)(__u64)skb->data_end;
 
     pkt_data * ptr = NULL;
+    
     if(((void*)data + payload_offset + sizeof(pkt_data))> data_end){
         if(DEBUG_LEVEL_1) bpf_printk("ERRORL : DATA SIZE FAILURE");
         goto EXIT;
@@ -306,7 +307,7 @@ int handle_egress(struct __sk_buff *skb)
     bpf_map_update_elem(&storage_map,map_key,&(ptr->map_value),BPF_ANY);
     
     #else // MAP_TYPE == ARRAY     
-    u32 map_key = uint8_t2u32(ptr->map_key.key,KEY_SIZE);
+    u32 map_key = bpf_get_prandom_u32()%MAX_ENTRIES;//uint8_t2u32(ptr->map_key.key,KEY_SIZE);
     bpf_map_update_elem(&storage_map,&map_key,&(ptr->map_value),BPF_ANY);    
     #endif
     

@@ -16,9 +16,9 @@
 #define INTERFACE_NAME "ens259f1"
 
 // map related config
-#define STORAGE_SIZE 1<<9// bytes
+#define STORAGE_SIZE 1<<9 //bytes range to wary for exerpiment 64(1<<6) 128(1<<7) 256(1<<8) 512(1<<9) 
 #define KEY_SIZE 2 //bytes
-#define MAX_ENTRIES 1<<16// count of entries
+#define MAX_ENTRIES 1<<4// count of entries
 
 // 1<<26 is the hard limit : 64 MB for key size * value size
 
