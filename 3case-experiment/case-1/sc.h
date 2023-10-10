@@ -6,7 +6,7 @@
 #define MULTI_CORE 2
 
 // config
-#define PORT 80
+#define PORT 5000
 #define INTERFACE_NAME "lo"
 
 //experiment realted config
@@ -23,7 +23,7 @@
 #define BPF_ANY 0
 
 // map related config
-#define MAX_ENTRIES 64
+#define MAX_ENTRIES 2
 #define COUNTER_KEY 0
 
 // map value 

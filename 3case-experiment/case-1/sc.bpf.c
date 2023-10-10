@@ -20,7 +20,6 @@
 // #def not available in vmlinux.h
 #define ETH_P_IP    0x0800
 #define ETH_HEADER_SIZE 14
-#define INITIAL_SKIP 631
 // for easy understanding 
 #define htons bpf_htons
 #define ntohl bpf_ntohl
@@ -70,12 +69,14 @@ struct c1 {
     char c[1];
 };
 
-#define l3Count 3
+#define INITIAL_SKIP 1377
+
+#define l3Count 4
 typedef struct long2array {
     uint64_t l[l3Count];
 } l3_t;
-uint64_t l3match [l3Count]  = { 8316851549228984164,7022066690769053537,34};
-uint64_t l3mask  [l3Count]  = { 18446744073709551615,18446744073709551615,255};
+uint64_t l3match [l3Count]  = { 4189022153933615906,7521962929683579170,8315162656701967457,8808};
+uint64_t l3mask  [l3Count]  = { 18446744073709551615,18446744073709551615,18446744073709551615,65535};
 
 
 /*## FUNCTIONS ##*/
@@ -349,7 +350,7 @@ MAP_UPDATE:
     bpf_map_update_elem(&user_map,&key,ud,BPF_ANY);
     
 EXIT:
-    if(DEBUG_LEVEL_1) bpf_printk("-------------  Code Over  ---------------\n");
+    // if(DEBUG_LEVEL_1) bpf_printk("-------------  Code Over  ---------------\n");
     return TC_ACT_OK;
 }
 

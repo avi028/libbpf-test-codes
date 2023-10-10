@@ -108,6 +108,6 @@ int main(){
 
 //	getLLforList(attrlist);
 
-	genLong("\"state\": \"111111111111\"");
+	genLong("\"state\":\"ArunachalPradesh\"");
 	return 0;	
 }
