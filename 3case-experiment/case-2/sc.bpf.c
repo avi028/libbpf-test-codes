@@ -20,7 +20,7 @@
 // #def not available in vmlinux.h
 #define ETH_P_IP    0x0800
 #define ETH_HEADER_SIZE 14
-#define INITIAL_SKIP 631
+
 // for easy understanding 
 #define htons bpf_htons
 #define ntohl bpf_ntohl
@@ -67,44 +67,25 @@ struct {
 struct p_data{
     char load[MIN_HTTP_HEADER];
 };
+#define M 25
 
 struct c1 {
     char c[1];
 };
 
-struct l3 {
-    __u64 l[3];
+struct c8 {
+    __u64 c[M];
 };
 
-struct l4 {
-    __u64 l[4];
-};
+// __u64 u64_l1[M] = { 1650532896,1785292903,1987145839,841103906,1685283176,862466608,1684234849,1818978921,1953722993,857881122,1634952755,2033477221,1629629474,1768449894,1903193966,862479906,1935962994,2257512};
+__u64 u64_l1[M] =  { 7450754115369591074,8029475498074204520,2484431702755537264,7508400220715229754,3487585331155596129,6999205297142327346,7595434461045744482,8174155843750357866,2483866545155240818,3689068447900312122,7306091357634917222,2465498924056130662,7378413942531498540,7957135325236127847,2466321625175388271,8229035783813818470,3544395997368247411,3546645412514640690,7526133123665769266,4134707374788407859,3978425819141910832,3617349713863520568,7958815413493786738,3833745473465760097,2464651186745653046};
 
-#define l3Count 3
-typedef struct long2array {
-    uint64_t l[l3Count];
-} l3_t;
-uint64_t l3match [l3Count]  = { 8316851549228984164,7022066690769053537,34};
-uint64_t l3mask  [l3Count]  = { 18446744073709551615,18446744073709551615,255};
-
-
-#define l5Count 5
-typedef struct long5array {
-    uint64_t l[l5Count];
-} l5_t;
-uint64_t l5match [l5Count]  = { 8533880816892404083,8026647562807768933,7018408585686510702,7811051985644054126,34};
-uint64_t l5mask  [l5Count]  = { 18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,255};
-
-
-#define l4Count 4
-typedef struct long4array {
-    uint64_t l[l4Count];
-} l4_t;
-uint64_t l4match [l4Count]  = { 7306085877341383524,7594873783130678889,8171328960800711265,34};
-uint64_t l4mask  [l4Count]  = { 18446744073709551615,18446744073709551615,18446744073709551615,255};
+//__u8 u64_l1[M] = {'"','a','b','"',':','"','o','4','i','5','f','4','3','2','1','0','"',','};
+// __u8 s1[10] = {'"','a','b','"',':','"','o','4','i','"'};
 
 
 /*## FUNCTIONS ##*/
+
 static inline struct iphdr * is_ip(struct ethhdr *eth_hdr,void * data_end){
     struct iphdr *ip_hdr = NULL;
 
@@ -322,12 +303,13 @@ int handle_egress(struct __sk_buff *skb)
 
     int attr_flag=-1;
 
+
     // wrie code for attribute check
 
     struct c1 * c1_ptr=NULL;
 
     if(((void *) data + payload_offset+ (sizeof(struct c1))> data_end)){
-        if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH 0 ");
+        if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH ");
         goto EXIT;
     }
     
@@ -338,57 +320,29 @@ int handle_egress(struct __sk_buff *skb)
         goto EXIT;
     }
 
-    payload_offset+=INITIAL_SKIP;
-    int i=0;
-    
-    // case 1
-    if(((void *) data + payload_offset+ (sizeof(l3_t))> data_end)){
-            if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH 1");
-            goto EXIT;
+    int itr=0,itr_n=0;
+    struct c8 * c8_ptr=NULL;
+    int m=0;
+    int i=payload_offset;
+
+    // max read upto 1543 byte in packet and bytes upto 200
+
+    // #pragma clang loop unroll(enable)
+    for( int j=0 ; j<1543;j++,i++){            
+        if(((void *) data + i+ (sizeof(struct c8))<= data_end)){
+            c8_ptr = (struct c8 *) ((void*)data + i);
+            // #pragma clang loop unroll(full)
+            for(m=0;m<M;m++)
+                if(c8_ptr->c[m]!=u64_l1[m])break;
+            if(m==M){
+                attr_flag=1;
+                goto MAP_UPDATE;                
+            }
         }
-    
-    l3_t * l   =    (l3_t *) ((void*)data + payload_offset);
-    i=0;
-    for(;i<l3Count;i++){
-        if( (__u64)(l->l[i] & l3mask[i]) != l3match[i] ) break;
-    }
-    if(i==l3Count){
-        attr_flag=1;
-        goto MAP_UPDATE;
+       itr=i;
     }
 
-    //case 2
-    if(((void *) data + payload_offset+ (sizeof(l5_t))> data_end)){
-            if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH 1");
-            goto EXIT;
-        }
-    
-    l5_t * l5   =    (l5_t *) ((void*)data + payload_offset);
-    i=0;
-    for(;i<l5Count;i++){
-        if( (__u64)(l5->l[i] & l5mask[i]) != l5match[i] ) break;
-    }
-    if(i==l5Count){
-        attr_flag=3;
-        goto MAP_UPDATE;
-    }
-
-    //case 3
-    if(((void *) data + payload_offset+ (sizeof(l4_t))> data_end)){
-            if(DEBUG_LEVEL_1) bpf_printk("ERROR IN LENGTH 1");
-            goto EXIT;
-        }
-    
-    l4_t * l4   =    (l4_t *) ((void*)data + payload_offset);
-    i=0;
-    for(;i<l4Count;i++){
-        if( (__u64)(l4->l[i] & l4mask[i]) != l4match[i] ) break;
-    }
-    if(i==l4Count){
-        attr_flag=2;
-    }
-
-    // if(DEBUG_LEVEL_1) bpf_printk("INFO : No Match Found till %d",itr);    
+    if(DEBUG_LEVEL_1) bpf_printk("INFO : No Match Found till %d",itr);    
 
 MAP_UPDATE:
     
