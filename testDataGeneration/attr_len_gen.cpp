@@ -60,8 +60,10 @@ vector<vector<uint64_t>> genLong(string s){
 		out[i] = str_to_long(cptr);
 		out_mask[i]=mask_set[0];
 	}
-	if(mask_loc!=-1)
+	if(mask_loc!=-1){
 		out_mask[mask_loc] = mask_set[mask];
+		out[mask_loc] = out_mask[mask_loc]&out[mask_loc];
+	}
 
 	if(DEBUG_){
 		cout<<"attr's"<<endl;
@@ -95,19 +97,24 @@ void getLLforList(vector<string> list){
 }
 
 int main(){
-	string s = "\"name\"";
-	vector<string> attrlist= {"\"nam",
-						 "\"cou",
-						 "\"ins",
-						 "\"id\"",
-						 "\"cou",
-						 "\"pro",
-						 "\"cit",
-						 "\"sta",
+	vector<string> attrlist= {
+							"\"nam",
+							"\"coun",
+							"\"ins",
+							"\"id\"",
+							"\"cour",
+							"\"pro",
+							"\"cit",
+							"\"sta"
 						};
 
-//	getLLforList(attrlist);
+	getLLforList(attrlist);
 
-	genLong("\"state\":\"ArunachalPradesh\"");
+	// vector<vector<uint64_t>> t = genLong("\"id\":\"11");
+	// vector<vector<uint64_t>> s =genLong("\"id\":\"");
+	// genLong("\"state\":\"ArunachalPradesh\"");
+	// uint64_t t00= t[0][0]&s[1][0];
+	// uint64_t s00= s[0][0]&s[1][0];
+	// cout<<t00<<" "<<s00<<endl;
 	return 0;	
 }

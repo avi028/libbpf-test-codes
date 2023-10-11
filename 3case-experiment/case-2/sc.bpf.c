@@ -71,12 +71,12 @@ struct c1 {
 };
 
 #define FINITE_SIZE 1500
-#define ATTR_LL_SIZE 1
+#define ATTR_LL_SIZE 4
 typedef struct c8 {
     __u64 attr[ATTR_LL_SIZE];
 }ll_t;
-__u64 ll_val[ATTR_LL_SIZE] =  { 7450754115369591074 };
-__u64 ll_mask[ATTR_LL_SIZE] = { 18446744073709551615 };
+__u64 ll_val[ATTR_LL_SIZE] =  { 4189022153933615906,7521962929683579170,8315162656701967457,8808};
+__u64 ll_mask[ATTR_LL_SIZE] = { 18446744073709551615,18446744073709551615,18446744073709551615,65535};
 
 
 /*## FUNCTIONS ##*/
@@ -355,7 +355,7 @@ MAP_UPDATE:
     bpf_map_update_elem(&user_map,&key,ud,BPF_ANY);
     
 EXIT:
-    if(DEBUG_LEVEL_1) bpf_printk("-------------  Code Over  ---------------\n");
+    // if(DEBUG_LEVEL_1) bpf_printk("-------------  Code Over  ---------------\n");
     return TC_ACT_OK;
 }
 

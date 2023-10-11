@@ -1,5 +1,3 @@
-import os
-
 key_list = ["name", "country", "institute", "id", "course", "program", "city", "state"]
 file = "./exp1.txt"
 const_attribute = '"state":"ArunachalPradesh"'
@@ -28,4 +26,4 @@ if __name__ == "__main__":
                 skip_bytes=init_len
         print("skip bytes : " + str(skip_bytes))
         print("data file : " + file)
-        f.write('#'*(1420-init_len))
+        f.write('#'*(1473-init_len))
