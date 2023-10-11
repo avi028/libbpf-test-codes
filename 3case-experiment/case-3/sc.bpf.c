@@ -72,18 +72,18 @@ struct c1 {
 
 #define ATTR_LIST_SIZE 8
 typedef struct c8 {
-    __u64 attr;
+    __u64 attr[1];
 }ll_t;
-__u64 list_val[10] =  { 7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074 };
-__u64 list_mask[10] = { 18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615 };
-const __u64 list_skip_bytes[ATTR_LIST_SIZE] = {1,2,0,4,5,6,7,8};
+__u64 list_val[ATTR_LIST_SIZE] =  { 1835101730,474416636706,1936615714,577005858,491596505890,1869770786,1953063714,1635021602};
+__u64 list_mask[ATTR_LIST_SIZE] = { 4294967295,1099511627775,4294967295,4294967295,1099511627775,4294967295,4294967295,4294967295};
+const __u64 list_skip_bytes[ATTR_LIST_SIZE] = {23,26,28,21,25,26,23,0};
 
-#define VALUE_LL_SIZE 10
+#define VALUE_LL_SIZE 4
 typedef struct c9 {
     __u64 lval[VALUE_LL_SIZE];
 }lval_t;
-__u64 lval[VALUE_LL_SIZE] =  { 7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074 };
-__u64 lvalmask[VALUE_LL_SIZE] = { 18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615 };
+__u64 lval[VALUE_LL_SIZE] =  { 4189022153933615906,7521962929683579170,8315162656701967457,8808};
+__u64 lvalmask[VALUE_LL_SIZE] = { 18446744073709551615,18446744073709551615,18446744073709551615,65535};
 
 
 /*## FUNCTIONS ##*/
@@ -312,13 +312,13 @@ int handle_egress(struct __sk_buff *skb)
         goto EXIT;
     }
     
-    c1_ptr = (struct c1 *) ((void*)data + payload_offset);
+    // c1_ptr = (struct c1 *) ((void*)data + payload_offset);
 
-    if(c1_ptr->c[0] != '{'){
-        if(DEBUG_LEVEL_1) bpf_printk("ERROR IN {");
-        goto EXIT;
-    }
-
+    // if(c1_ptr->c[0] != '{'){
+    //     if(DEBUG_LEVEL_1) bpf_printk("ERROR IN {");
+    //     goto EXIT;
+    // }
+    payload_offset+=1;
     int i=payload_offset;
     int attr_list_idx=0;
     int val_ll_idx=0;
@@ -328,69 +328,66 @@ int handle_egress(struct __sk_buff *skb)
     lval_t * lvalptr = NULL;
 
     // max read upto 1543 byte in packet and bytes upto 200
+    if(DEBUG_LEVEL_1)  bpf_printk("INFO : i :  %d",i);    
     #pragma clang loop unroll(full)
     for(int j = 0 ; j < ATTR_LIST_SIZE ; j++) {
             if(((void *) data + i + (sizeof(ll_t)) > data_end))
             goto EXIT;
 
             llptr = (ll_t *) ((void*) data + i);
-//            for(attr_list_idx = 0; attr_list_idx < ATTR_LIST_SIZE; attr_list_idx++) {
-            if( (llptr->attr & list_mask[0]) == list_val[0]) {
+            
+            if( (llptr->attr[0] & list_mask[0]) == list_val[0]) {
                 i += list_skip_bytes[0];
             }
-            else if( (llptr->attr & list_mask[1]) == list_val[1]) {
+            else if( (llptr->attr[0] & list_mask[1]) == list_val[1]) {
                 i += list_skip_bytes[1];
             }
-            else if( (llptr->attr & list_mask[2]) == list_val[2]) {
-                key = http_flag * 1;
-                break;
+            else if( (llptr->attr[0] & list_mask[2]) == list_val[2]) {
+                i += list_skip_bytes[2];
             }
-            else if( (llptr->attr & list_mask[3]) == list_val[3]) {
+            else if( (llptr->attr[0] & list_mask[3]) == list_val[3]) {
                 i += list_skip_bytes[3];
             }
-            else if( (llptr->attr & list_mask[4]) == list_val[4]) {
+            else if( (llptr->attr[0] & list_mask[4]) == list_val[4]) {
                 i += list_skip_bytes[4];
             }
-            else if( (llptr->attr & list_mask[5]) == list_val[5]) {
+            else if( (llptr->attr[0] & list_mask[5]) == list_val[5]) {
                 i += list_skip_bytes[5];
             }
-            else if( (llptr->attr & list_mask[6]) == list_val[6]) {
+            else if( (llptr->attr[0] & list_mask[6]) == list_val[6]) {
                 i += list_skip_bytes[6];
             }
-            else if( (llptr->attr & list_mask[7]) == list_val[6]) {
-                i += list_skip_bytes[6];
+            else if( (llptr->attr[0] & list_mask[7]) == list_val[7]) {
+                key = http_flag * 1;
+                goto VALUE_MATCH;
             }
-//            }                    
     }
-
-    if(key>0)
-        goto MAP_UPDATE;
 
     if(DEBUG_LEVEL_1)  bpf_printk("INFO : No Match Found for ATTR till %d",i);    
     goto EXIT;
 
-// VALUE_MATCH:
+VALUE_MATCH:
     
-//     if(((void *) data + i + (sizeof(lval_t)) <= data_end)){
-//         lvalptr = (lval_t *) ((void*)data + i);
-//         for(val_ll_idx=0;val_ll_idx<VALUE_LL_SIZE;val_ll_idx++){
-//             if( (lvalptr->lval[val_ll_idx]&lvalmask[val_ll_idx])  != lval[val_ll_idx])
-//                 break;
-//         }
-//         if(val_ll_idx==VALUE_LL_SIZE){
-//             key = http_flag * 1;
-//             goto MAP_UPDATE;
-//         }
-//     }
+    if(((void *) data + i + (sizeof(lval_t)) <= data_end)){
+        lvalptr = (lval_t *) ((void*)data + i);
+        for(val_ll_idx=0;val_ll_idx<VALUE_LL_SIZE;val_ll_idx++){
+            if( (lvalptr->lval[val_ll_idx]&lvalmask[val_ll_idx])  != lval[val_ll_idx])
+                break;
+        }
+        if(val_ll_idx==VALUE_LL_SIZE){
+            key = http_flag * 1;
+            goto MAP_UPDATE;
+        }
+    }
 
-//     if(DEBUG_LEVEL_1)  bpf_printk("INFO : No Match Found for VALUE till %d",i);    
-//     goto EXIT;
+    if(DEBUG_LEVEL_1)  bpf_printk("INFO : No Match Found for VALUE till %d",i);    
+    goto EXIT;
 
 MAP_UPDATE:
 
     ud = (ud_t *)bpf_map_lookup_elem(&user_map,&key);
     if(ud==NULL){
-        if(DEBUG_LEVEL_1) bpf_printk("ERROR: Map Upadet failed for key %d",key);
+        if(DEBUG_LEVEL_1) bpf_printk("ERROR: Map Update failed for key %d",key);
         goto EXIT;
     }
     ud->counter+=1;

@@ -69,7 +69,11 @@ struct c1 {
     char c[1];
 };
 
-#define INITIAL_SKIP 1377
+<<<<<<< HEAD
+#define INITIAL_SKIP 173
+=======
+#define INITIAL_SKIP 1447
+>>>>>>> 015c6002f50ad2bbe54490b7ac499205fd00612c
 
 #define l3Count 4
 typedef struct long2array {

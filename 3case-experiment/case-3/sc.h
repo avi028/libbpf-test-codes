@@ -6,10 +6,8 @@
 #define MULTI_CORE 2
 
 // config
-#define MTU_SIZE 1500
-#define PORT 80
+#define PORT 5000
 #define INTERFACE_NAME "lo"
-#define BYTE_PEEKS MTU_SIZE
 
 // debug levels
 #define DEBUG_LEVEL_2 0
