@@ -359,35 +359,35 @@ int handle_egress(struct __sk_buff *skb)
             }
             else if( (llptr->attr[0] & list_mask[7]) == list_val[7]) {
                 key = http_flag * 1;
-                goto MAP_UPDATE;
+                goto VALUE_MATCH;
             }
     }
 
     if(DEBUG_LEVEL_1)  bpf_printk("INFO : No Match Found for ATTR till %d",i);    
     goto EXIT;
 
-// VALUE_MATCH:
+VALUE_MATCH:
     
-//     if(((void *) data + i + (sizeof(lval_t)) <= data_end)){
-//         lvalptr = (lval_t *) ((void*)data + i);
-//         for(val_ll_idx=0;val_ll_idx<VALUE_LL_SIZE;val_ll_idx++){
-//             if( (lvalptr->lval[val_ll_idx]&lvalmask[val_ll_idx])  != lval[val_ll_idx])
-//                 break;
-//         }
-//         if(val_ll_idx==VALUE_LL_SIZE){
-//             key = http_flag * 1;
-//             goto MAP_UPDATE;
-//         }
-//     }
+    if(((void *) data + i + (sizeof(lval_t)) <= data_end)){
+        lvalptr = (lval_t *) ((void*)data + i);
+        for(val_ll_idx=0;val_ll_idx<VALUE_LL_SIZE;val_ll_idx++){
+            if( (lvalptr->lval[val_ll_idx]&lvalmask[val_ll_idx])  != lval[val_ll_idx])
+                break;
+        }
+        if(val_ll_idx==VALUE_LL_SIZE){
+            key = http_flag * 1;
+            goto MAP_UPDATE;
+        }
+    }
 
-//     if(DEBUG_LEVEL_1)  bpf_printk("INFO : No Match Found for VALUE till %d",i);    
-//     goto EXIT;
+    if(DEBUG_LEVEL_1)  bpf_printk("INFO : No Match Found for VALUE till %d",i);    
+    goto EXIT;
 
 MAP_UPDATE:
 
     ud = (ud_t *)bpf_map_lookup_elem(&user_map,&key);
     if(ud==NULL){
-        if(DEBUG_LEVEL_1) bpf_printk("ERROR: Map Upadet failed for key %d",key);
+        if(DEBUG_LEVEL_1) bpf_printk("ERROR: Map Update failed for key %d",key);
         goto EXIT;
     }
     ud->counter+=1;

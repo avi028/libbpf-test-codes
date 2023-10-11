@@ -11,7 +11,7 @@
 
 // debug levels
 #define DEBUG_LEVEL_2 0
-#define DEBUG_LEVEL_1 1
+#define DEBUG_LEVEL_1 0
 
 //experiment realted config
 #define CORES SINGLE_CORE
