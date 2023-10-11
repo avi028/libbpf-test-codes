@@ -7,14 +7,14 @@
 
 // config
 #define PORT 5000
-#define INTERFACE_NAME "lo"
+#define INTERFACE_NAME "ens259f1"
 
 //experiment realted config
 #define CORES SINGLE_CORE
 
 // debug levels
 #define DEBUG_LEVEL_2 0
-#define DEBUG_LEVEL_1 1
+#define DEBUG_LEVEL_1 0
 
 // Uncomment it for multicore 
 // #define MULTI_CORE
