@@ -273,11 +273,6 @@ int handle_egress(struct __sk_buff *skb)
         if(DEBUG_LEVEL_2) bpf_printk("HIT PORT FILTER");        
         goto EXIT;
     }
-
-    // if(( eth_hdr_len+ ip_hdr_len + tl_hdr_len + MIN_HTTP_HEADER) > total_pkt_len ){
-    //     if(DEBUG_LEVEL_1) bpf_printk("HIT HTTP LENGTH FILTER");        
-    //     goto EXIT;
-    // }
     
     int payload_offset = eth_hdr_len+ ip_hdr_len + tl_hdr_len;
 

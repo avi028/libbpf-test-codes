@@ -1,16 +1,22 @@
 #ifndef __SC_H__
 #define __SC_H__
 
+// expriment realted constants
+#define SINGLE_CORE 1
+#define MULTI_CORE 2
+
 // config
+#define MTU_SIZE 1500
 #define PORT 80
 #define INTERFACE_NAME "lo"
+#define BYTE_PEEKS MTU_SIZE
 
 // debug levels
 #define DEBUG_LEVEL_2 0
-#define DEBUG_LEVEL_1 1
+#define DEBUG_LEVEL_1 0
 
-// Uncomment it for multicore 
-// #define MULTI_CORE
+//experiment realted config
+#define CORES SINGLE_CORE
 
 // defines not found in vmlinux.h
 #define BPF_ANY 0

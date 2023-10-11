@@ -50,13 +50,11 @@
 
 /*## MAPS ##*/
 struct {
-
-    #ifdef MULTI_CORE
+    #if CORES == MULTI_CORE
     __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
-    #else
+    #else // CORES=SINGLE_CORE
     __uint(type, BPF_MAP_TYPE_ARRAY);
     #endif
-
     __uint(max_entries, MAX_ENTRIES);
     __type(value, ud_t);
     __type(key, u32);
@@ -67,21 +65,25 @@ struct {
 struct p_data{
     char load[MIN_HTTP_HEADER];
 };
-#define M 25
 
 struct c1 {
     char c[1];
 };
 
-struct c8 {
-    __u64 c[M];
-};
+#define ATTR_LIST_SIZE 8
+typedef struct c8 {
+    __u64 attr;
+}ll_t;
+__u64 list_val[10] =  { 7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074 };
+__u64 list_mask[10] = { 18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615 };
+const __u64 list_skip_bytes[ATTR_LIST_SIZE] = {1,2,0,4,5,6,7,8};
 
-// __u64 u64_l1[M] = { 1650532896,1785292903,1987145839,841103906,1685283176,862466608,1684234849,1818978921,1953722993,857881122,1634952755,2033477221,1629629474,1768449894,1903193966,862479906,1935962994,2257512};
-__u64 u64_l1[M] =  { 7450754115369591074,8029475498074204520,2484431702755537264,7508400220715229754,3487585331155596129,6999205297142327346,7595434461045744482,8174155843750357866,2483866545155240818,3689068447900312122,7306091357634917222,2465498924056130662,7378413942531498540,7957135325236127847,2466321625175388271,8229035783813818470,3544395997368247411,3546645412514640690,7526133123665769266,4134707374788407859,3978425819141910832,3617349713863520568,7958815413493786738,3833745473465760097,2464651186745653046};
-
-//__u8 u64_l1[M] = {'"','a','b','"',':','"','o','4','i','5','f','4','3','2','1','0','"',','};
-// __u8 s1[10] = {'"','a','b','"',':','"','o','4','i','"'};
+#define VALUE_LL_SIZE 10
+typedef struct c9 {
+    __u64 lval[VALUE_LL_SIZE];
+}lval_t;
+__u64 lval[VALUE_LL_SIZE] =  { 7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074,7450754115369591074 };
+__u64 lvalmask[VALUE_LL_SIZE] = { 18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615 };
 
 
 /*## FUNCTIONS ##*/
@@ -180,12 +182,10 @@ static inline int is_http(struct __sk_buff *skb,int payload_offset){
 }
 
 static inline int is_port(int sport , int dport){
-
     if(PORT == dport || PORT == sport)
         return 1;
     return 0;
 }
-
 
 /*## Driver Code ##*/
 SEC("classifier")
@@ -268,41 +268,40 @@ int handle_egress(struct __sk_buff *skb)
     data = (void*)(__u64)skb->data; 
     data_end = (void*)(__u64)skb->data_end;
 
+    int http_flag = 1;
+
     // if HTTP Request/Response
-    int http_flag = is_http(skb,payload_offset);
+    // http_flag = is_http(skb,payload_offset);
 
-    if(http_flag <= 0 ){
-        if(DEBUG_LEVEL_1) bpf_printk("HIT HTTP FILTER : %d",http_flag);
-        goto EXIT;
-    }
+    // if(http_flag <= 0 ){
+    //     if(DEBUG_LEVEL_1) bpf_printk("HIT HTTP FILTER : %d",http_flag);
+    //     goto EXIT;
+    // }
 
-    if(http_flag==POST_REQUEST){
-        if(DEBUG_LEVEL_1) bpf_printk("POST REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_POST_HEADER;
-    }
+    // if(http_flag==POST_REQUEST){
+    //     if(DEBUG_LEVEL_1) bpf_printk("POST REQUEST AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_POST_HEADER;
+    // }
 
-    if(http_flag==PUT_REQUEST){
-        if(DEBUG_LEVEL_1) bpf_printk("PUT REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_PUT_HEADER;
-    }
+    // if(http_flag==PUT_REQUEST){
+    //     if(DEBUG_LEVEL_1) bpf_printk("PUT REQUEST AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_PUT_HEADER;
+    // }
 
-    if(http_flag==DELETE_REQUEST){
-        if(DEBUG_LEVEL_1) bpf_printk("DELETE REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_DELETE_HEADER;
-    }
+    // if(http_flag==DELETE_REQUEST){
+    //     if(DEBUG_LEVEL_1) bpf_printk("DELETE REQUEST AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_DELETE_HEADER;
+    // }
 
-    if(http_flag==GET_REQUEST){
-        if(DEBUG_LEVEL_1) bpf_printk("GET REQUEST AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_GET_HEADER;
-    }
+    // if(http_flag==GET_REQUEST){
+    //     if(DEBUG_LEVEL_1) bpf_printk("GET REQUEST AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_GET_HEADER;
+    // }
 
-    if(http_flag==HTTP_RESPONSE){
-        if(DEBUG_LEVEL_1) bpf_printk("HTTP RESPONSE AT PORT\t%d",dest_port);
-        payload_offset+=SKIP_HTTP_HEADER;
-    }
-
-    int attr_flag=-1;
-
+    // if(http_flag==HTTP_RESPONSE){
+    //     if(DEBUG_LEVEL_1) bpf_printk("HTTP RESPONSE AT PORT\t%d",dest_port);
+    //     payload_offset+=SKIP_HTTP_HEADER;
+    // }
 
     // wrie code for attribute check
 
@@ -320,43 +319,80 @@ int handle_egress(struct __sk_buff *skb)
         goto EXIT;
     }
 
-    int itr=0,itr_n=0;
-    struct c8 * c8_ptr=NULL;
-    int m=0;
     int i=payload_offset;
+    int attr_list_idx=0;
+    int val_ll_idx=0;
+    __u32 key =0 ;
+    ud_t *ud=NULL;
+    ll_t * llptr=NULL;
+    lval_t * lvalptr = NULL;
 
     // max read upto 1543 byte in packet and bytes upto 200
+    #pragma clang loop unroll(full)
+    for(int j = 0 ; j < ATTR_LIST_SIZE ; j++) {
+            if(((void *) data + i + (sizeof(ll_t)) > data_end))
+            goto EXIT;
 
-    // #pragma clang loop unroll(enable)
-    for( int j=0 ; j<BYTE_PEEKS;j++,i++){
-        if(((void *) data + i+ (sizeof(struct c8))<= data_end)){
-            c8_ptr = (struct c8 *) ((void*)data + i);
-            // #pragma clang loop unroll(full)
-            for(m=0;m<M;m++)
-                if(c8_ptr->c[m]!=u64_l1[m])break;
-            if(m==M){
-                attr_flag=1;
-                goto MAP_UPDATE;
+            llptr = (ll_t *) ((void*) data + i);
+//            for(attr_list_idx = 0; attr_list_idx < ATTR_LIST_SIZE; attr_list_idx++) {
+            if( (llptr->attr & list_mask[0]) == list_val[0]) {
+                i += list_skip_bytes[0];
             }
-        }
-       itr=i;
+            else if( (llptr->attr & list_mask[1]) == list_val[1]) {
+                i += list_skip_bytes[1];
+            }
+            else if( (llptr->attr & list_mask[2]) == list_val[2]) {
+                key = http_flag * 1;
+                break;
+            }
+            else if( (llptr->attr & list_mask[3]) == list_val[3]) {
+                i += list_skip_bytes[3];
+            }
+            else if( (llptr->attr & list_mask[4]) == list_val[4]) {
+                i += list_skip_bytes[4];
+            }
+            else if( (llptr->attr & list_mask[5]) == list_val[5]) {
+                i += list_skip_bytes[5];
+            }
+            else if( (llptr->attr & list_mask[6]) == list_val[6]) {
+                i += list_skip_bytes[6];
+            }
+            else if( (llptr->attr & list_mask[7]) == list_val[6]) {
+                i += list_skip_bytes[6];
+            }
+//            }                    
     }
-    if(DEBUG_LEVEL_1) bpf_printk("INFO : No Match Found till %d",itr);    
+
+    if(key>0)
+        goto MAP_UPDATE;
+
+    if(DEBUG_LEVEL_1)  bpf_printk("INFO : No Match Found for ATTR till %d",i);    
+    goto EXIT;
+
+// VALUE_MATCH:
+    
+//     if(((void *) data + i + (sizeof(lval_t)) <= data_end)){
+//         lvalptr = (lval_t *) ((void*)data + i);
+//         for(val_ll_idx=0;val_ll_idx<VALUE_LL_SIZE;val_ll_idx++){
+//             if( (lvalptr->lval[val_ll_idx]&lvalmask[val_ll_idx])  != lval[val_ll_idx])
+//                 break;
+//         }
+//         if(val_ll_idx==VALUE_LL_SIZE){
+//             key = http_flag * 1;
+//             goto MAP_UPDATE;
+//         }
+//     }
+
+//     if(DEBUG_LEVEL_1)  bpf_printk("INFO : No Match Found for VALUE till %d",i);    
+//     goto EXIT;
 
 MAP_UPDATE:
-    
-    if(attr_flag<0)
-        goto EXIT;
 
-    u32 key = http_flag * attr_flag;
-
-    ud_t * ud = (ud_t *)bpf_map_lookup_elem(&user_map,&key);
-
+    ud = (ud_t *)bpf_map_lookup_elem(&user_map,&key);
     if(ud==NULL){
         if(DEBUG_LEVEL_1) bpf_printk("ERROR: Map Upadet failed for key %d",key);
         goto EXIT;
     }
-
     ud->counter+=1;
     if(DEBUG_LEVEL_2) bpf_printk("INFO: Map Upadte for key %d",key);
     bpf_map_update_elem(&user_map,&key,ud,BPF_ANY);

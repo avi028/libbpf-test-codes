@@ -41,17 +41,9 @@ int main(int argc, char **argv)
     }
     printf("INFO : Program Loaded\n");
 
-    // if(skel->bss == NULL){
-    //     printf("INFO : No Global Var Support\n");
-    // }    
-    // else
-    //     skel->bss->my_pid = getpid();
-
     bpf_tc_hook_create(&hook);
     hook.attach_point = BPF_TC_CUSTOM;
-
     hook.parent = TC_H_MAKE(TC_H_CLSACT, TC_H_MIN_INGRESS);
-
     opts.prog_fd = bpf_program__fd(skel->progs.handle_egress);
     opts.prog_id = 0; 
     opts.flags = BPF_TC_F_REPLACE;
@@ -59,7 +51,7 @@ int main(int argc, char **argv)
     
     bpf_tc_attach(&hook, &opts);
     printf("INFO : Program Attached\n");
-    #ifdef MULTI_CORE
+    #if CORES == MULTI_CORE
         int num_cpus = libbpf_num_possible_cpus();   
     #else 
         int num_cpus = 1;   
@@ -69,31 +61,32 @@ int main(int argc, char **argv)
     // get map fd
     int map_fd = bpf_map__fd(skel->maps.user_map);
 
-    /*
-        POST abcde      ->  15
-        POST abcdefghij ->  30
-    */
-    const int key_set_size = 3;
-    unsigned int key_set [key_set_size] = {3, 15,30};
+    const int key_set_size = 1;
+    unsigned int key_set [key_set_size] = {1};
     unsigned int  key;
 
     __u32 value_size = bpf_map__value_size(skel->maps.user_map);
     void * ud_data = (void *)malloc(roundup(value_size,8)*num_cpus);
 
-    int per_cpu_sum;
+    int sum;
     int status;
     printf("STATUS :\n");
+
     while(exiting!=true){    
         for(int itr=0;itr<key_set_size;itr++){
             key = key_set[itr];
             status = bpf_map_lookup_elem(map_fd,&key,ud_data);
             if(status!=-1){
-            per_cpu_sum=0;
-            for(int i=0;i<num_cpus;i++){
-                    per_cpu_sum+=(int)*((long *)ud_data + i);
-                }
+                sum=0;
+                #if CORES == MULTI_CORE
+                    for(int i=0;i<num_cpus;i++){
+                        sum+=(int)*((long *)ud_data + i);
+                    }
+                #else
+                    sum+=(int)*((long *)ud_data);
+                #endif
+                printf("attr%d \t %d \t",key_set[itr],sum);
             }
-            printf("attr%d \t %d \t",key_set[itr],per_cpu_sum);
         }
         printf("\r");    
         fflush(stdout);

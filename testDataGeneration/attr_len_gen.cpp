@@ -4,7 +4,7 @@
 #include <cstring>
 using namespace std;
 
-#define DEBUG_ 1 1
+#define DEBUG_ 1
 
 uint64_t str_to_long(char array[] ){
 
@@ -94,11 +94,6 @@ void getLLforList(vector<string> list){
 	printV(masks);
 }
 
-
-int parseJson(){
-
-}
-
 int main(){
 	string s = "\"name\"";
 	vector<string> attrlist= {"\"nam",
@@ -111,6 +106,8 @@ int main(){
 						 "\"sta",
 						};
 
-	getLLforList(attrlist);
+//	getLLforList(attrlist);
+
+	genLong("\"state\":\"ArunachalPradesh\"");
 	return 0;	
 }
