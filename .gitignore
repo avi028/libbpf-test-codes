@@ -1,5 +1,11 @@
 MTP.sublime-project
 
+# Executables
+*
+!*.*
+!*/
+!Makefile
+
 # Prerequisites
 *.d
 
@@ -43,6 +49,10 @@ MTP.sublime-project
 *.su
 *.idb
 *.pdb
+
+# Text Files
+*.csv
+*.txt
 
 # Kernel Module Compile Results
 *.mod*
